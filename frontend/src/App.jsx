@@ -1,16 +1,16 @@
 import React, { Component } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { SocketProvider } from './context/SocketContext';
-import { ChatProvider } from './context/ChatContext';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { SocketProvider } from './context/SocketContext.jsx';
+import { ChatProvider } from './context/ChatContext.jsx';
 
 // Pages
-import Login from './components/Auth/Login';
-import Register from './components/Auth/Register';
-import ChatHome from './components/Chat/ChatHome';
-import AdminDashboard from './components/Admin/AdminDashboard';
-import AdminUsers from './components/Admin/AdminUsers';
-import AdminMessages from './components/Admin/AdminMessages';
+import Login from './components/Auth/Login.jsx';
+import Register from './components/Auth/Register.jsx';
+import ChatHome from './components/Chat/ChatHome.jsx';
+import AdminDashboard from './components/Admin/AdminDashboard.jsx';
+import AdminUsers from './components/Admin/AdminUsers.jsx';
+import AdminMessages from './components/Admin/AdminMessages.jsx';
 
 // HOC for protected routes
 class ProtectedRoute extends Component {

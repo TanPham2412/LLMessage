@@ -1,6 +1,6 @@
 import React, { Component, createContext } from 'react';
-import socketService from '../services/socket';
-import { AuthContext } from './AuthContext';
+import SocketService from '../services/socket.js';
+import { AuthContext } from './AuthContext.jsx';
 
 export const SocketContext = createContext();
 

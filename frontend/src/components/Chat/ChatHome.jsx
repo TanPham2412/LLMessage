@@ -1,8 +1,8 @@
 import React, { Component } from 'react';
-import { AuthContext } from '../../context/AuthContext';
-import { ChatContext } from '../../context/ChatContext';
-import ConversationList from './ConversationList';
-import ChatWindow from './ChatWindow';
+import { AuthContext } from '../../context/AuthContext.jsx';
+import { ChatContext } from '../../context/ChatContext.jsx';
+import ConversationList from './ConversationList.jsx';
+import ChatWindow from './ChatWindow.jsx';
 import '../../styles/Chat.css';
 
 class ChatHome extends Component {
