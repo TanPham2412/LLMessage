@@ -60,15 +60,20 @@ class AuthController {
 
   async login(req, res) {
     try {
-      const { email, password } = req.body;
+      const { email, password, loginId } = req.body;
+      
+      // Hỗ trợ cả loginId (username hoặc email) và email riêng lẻ
+      const identifier = loginId || email;
 
-      // Find user with password field
-      const user = await User.findOne({ email }).select('+password');
+      // Tìm user bằng email hoặc username
+      const user = await User.findOne({
+        $or: [{ email: identifier }, { username: identifier }]
+      }).select('+password');
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid credentials'
+          message: 'Thông tin đăng nhập không chính xác'
         });
       }
 
@@ -78,7 +83,7 @@ class AuthController {
       if (!isPasswordValid) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid credentials'
+          message: 'Thông tin đăng nhập không chính xác'
         });
       }
 
