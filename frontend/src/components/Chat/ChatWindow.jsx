@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { ChatContext } from '../../context/ChatContext';
+import { ChatContext } from '../../context/ChatContext.jsx';
 
 class ChatWindow extends Component {
   static contextType = ChatContext;
