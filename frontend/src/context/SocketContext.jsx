@@ -10,29 +10,36 @@ export class SocketProvider extends Component {
   constructor(props) {
     super(props);
     
+    this.socketService = new SocketService();
+    
     this.state = {
       connected: false,
-      onlineUsers: []
+      onlineUsers: [],
+      currentToken: null
     };
   }
 
   componentDidMount() {
-    const { token } = this.context;
+    const token = this.context?.token || localStorage.getItem('token');
     if (token) {
-      this.connectSocket();
+      this.setState({ currentToken: token });
+      this.connectSocket(token);
     }
   }
 
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    const { token } = this.context;
+  componentDidUpdate(prevProps, prevState) {
+    const token = this.context?.token || localStorage.getItem('token');
+    const prevToken = prevState.currentToken;
     
     // Connect when token becomes available
-    if (token && !prevProps.token) {
-      this.connectSocket();
+    if (token && !prevToken) {
+      this.setState({ currentToken: token });
+      this.connectSocket(token);
     }
     
     // Disconnect when token is removed
-    if (!token && prevProps.token) {
+    if (!token && prevToken) {
+      this.setState({ currentToken: null });
       this.disconnectSocket();
     }
   }
@@ -41,28 +48,26 @@ export class SocketProvider extends Component {
     this.disconnectSocket();
   }
 
-  connectSocket = () => {
-    const { token } = this.context;
-    
+  connectSocket = (token) => {
     if (!token) return;
 
-    socketService.connect(token);
+    this.socketService.connect(token);
 
-    socketService.on('connect', () => {
+    this.socketService.on('connect', () => {
       this.setState({ connected: true });
     });
 
-    socketService.on('disconnect', () => {
+    this.socketService.on('disconnect', () => {
       this.setState({ connected: false });
     });
 
-    socketService.onUserOnline((data) => {
+    this.socketService.onUserOnline((data) => {
       this.setState(prevState => ({
         onlineUsers: [...prevState.onlineUsers, data.userId]
       }));
     });
 
-    socketService.onUserOffline((data) => {
+    this.socketService.onUserOffline((data) => {
       this.setState(prevState => ({
         onlineUsers: prevState.onlineUsers.filter(id => id !== data.userId)
       }));
@@ -70,31 +75,31 @@ export class SocketProvider extends Component {
   };
 
   disconnectSocket = () => {
-    socketService.disconnect();
+    this.socketService.disconnect();
     this.setState({ connected: false, onlineUsers: [] });
   };
 
   emit = (event, data) => {
-    socketService.emit(event, data);
+    this.socketService.emit(event, data);
   };
 
   on = (event, callback) => {
-    socketService.on(event, callback);
+    this.socketService.on(event, callback);
   };
 
   off = (event, callback) => {
-    socketService.off(event, callback);
+    this.socketService.off(event, callback);
   };
 
   render() {
     const contextValue = {
       connected: this.state.connected,
       onlineUsers: this.state.onlineUsers,
-      socket: socketService.getSocket(),
+      socket: this.socketService.getSocket(),
       emit: this.emit,
       on: this.on,
       off: this.off,
-      socketService
+      socketService: this.socketService
     };
 
     return (
