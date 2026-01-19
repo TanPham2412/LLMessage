@@ -1,6 +1,6 @@
 import React, { Component, createContext } from 'react';
-import api from '../services/api';
-import { SocketContext } from './SocketContext';
+import api from '../services/api.js';
+import { SocketContext } from './SocketContext.jsx';
 
 export const ChatContext = createContext();
 
