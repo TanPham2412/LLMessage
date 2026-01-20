@@ -18,7 +18,7 @@ class FriendNotifications extends Component {
 
   componentDidMount() {
     this.loadFriendRequests();
-    this.loadNotifications(); // Load notifications from database
+    this.loadNotifications(); // Tải thông báo từ database
     this.setupSocketListeners();
     this.notifyCountChange();
   }
@@ -125,7 +125,7 @@ class FriendNotifications extends Component {
       const response = await api.getNotifications({ limit: 20 });
       
       if (response.success) {
-        // Transform database notifications to match component format
+        // Chuyển đổi thông báo từ database sang định dạng component
         const dbNotifications = response.data.map(notif => ({
           id: notif._id,
           type: this.mapNotificationType(notif.type),

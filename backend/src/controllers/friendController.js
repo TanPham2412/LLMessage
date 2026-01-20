@@ -35,7 +35,7 @@ class FriendController {
         });
       }
 
-      // Check if already friends
+      // Kiểm tra đã là bạn bè chưa
       if (sender.friends.includes(recipientId)) {
         return res.status(400).json({
           success: false,
@@ -43,7 +43,7 @@ class FriendController {
         });
       }
 
-      // Check if already sent request (in sender's sentFriendRequests)
+      // Kiểm tra đã gửi lời mời chưa (trong sentFriendRequests của người gửi)
       const alreadySent = sender.sentFriendRequests.find(
         req => req.to.toString() === recipientId
       );
@@ -55,7 +55,7 @@ class FriendController {
         });
       }
 
-      // Check if request exists in recipient's friendRequests
+      // Kiểm tra lời mời có tồn tại trong friendRequests của người nhận không
       const existingRequest = recipient.friendRequests.find(
         req => req.from.toString() === senderId
       );
@@ -67,11 +67,11 @@ class FriendController {
         });
       }
 
-      // Add to recipient's friend requests
+      // Thêm vào danh sách lời mời kết bạn của người nhận
       recipient.friendRequests.push({ from: senderId });
       await recipient.save();
 
-      // Add to sender's sent requests
+      // Thêm vào danh sách đã gửi của người gửi
       sender.sentFriendRequests.push({ to: recipientId });
       await sender.save();
 
@@ -87,7 +87,7 @@ class FriendController {
         }
       });
 
-      // Send real-time notification to recipient
+      // Gửi thông báo real-time cho người nhận
       if (this.socketHandler) {
         this.socketHandler.sendNotificationToUser(recipientId, 'friend-request-received', {
           requestId: recipient.friendRequests[recipient.friendRequests.length - 1]._id,
@@ -134,29 +134,29 @@ class FriendController {
 
       const senderId = user.friendRequests[requestIndex].from;
 
-      // Add to friends list
+      // Thêm vào danh sách bạn bè
       user.friends.push(senderId);
       user.friendRequests.splice(requestIndex, 1);
       await user.save();
 
-      // Add current user to sender's friends
+      // Thêm user hiện tại vào danh sách bạn bè của người gửi
       const sender = await User.findById(senderId);
       sender.friends.push(userId);
       
-      // Remove from sent requests
+      // Xoá khỏi danh sách đã gửi
       sender.sentFriendRequests = sender.sentFriendRequests.filter(
         req => req.to.toString() !== userId.toString()
       );
       await sender.save();
 
-      // Create private conversation
+      // Tạo cuộc trò chuyện riêng tư
       const conversation = await Conversation.create({
         participants: [userId, senderId],
         type: 'private',
         createdBy: userId
       });
 
-      // Create notification in database
+      // Tạo thông báo trong database
       await Notification.create({
         recipient: senderId,
         sender: userId,
@@ -218,7 +218,7 @@ class FriendController {
       user.friendRequests.splice(requestIndex, 1);
       await user.save();
 
-      // Remove from sender's sent requests
+      // Xoá khỏi danh sách đã gửi của người gửi
       const sender = await User.findById(senderId);
       sender.sentFriendRequests = sender.sentFriendRequests.filter(
         req => req.to.toString() !== userId.toString()

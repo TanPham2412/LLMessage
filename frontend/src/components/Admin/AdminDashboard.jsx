@@ -16,8 +16,8 @@ class AdminDashboard extends Component {
   }
 
   componentDidMount() {
-    // Load dashboard stats
-    // This is a placeholder - you can implement API calls
+    // Tải thống kê dashboard
+    // Đây là placeholder - bạn có thể triển khai API calls
   }
 
   handleLogout = () => {

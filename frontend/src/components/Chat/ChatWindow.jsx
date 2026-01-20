@@ -19,10 +19,10 @@ class ChatWindow extends Component {
   }
 
   componentDidMount() {
-    // Update time every 10 seconds for real-time status
+    // Cập nhật thời gian mỗi 10 giây cho trạng thái real-time
     this.timeUpdateInterval = setInterval(() => {
       this.setState({ currentTime: Date.now() });
-    }, 10000); // Update every 10 seconds
+    }, 10000); // Cập nhật mỗi 10 giây
   }
 
   componentWillUnmount() {

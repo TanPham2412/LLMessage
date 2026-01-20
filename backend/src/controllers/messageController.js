@@ -7,7 +7,7 @@ class MessageController {
       const { conversationId, content, type = 'text' } = req.body;
       const senderId = req.user.id;
 
-      // Verify conversation exists and user is participant
+      // Xác thực conversation tồn tại và user là thành viên
       const conversation = await Conversation.findById(conversationId);
       if (!conversation) {
         return res.status(404).json({
@@ -23,7 +23,7 @@ class MessageController {
         });
       }
 
-      // Create message
+      // Tạo tin nhắn
       const messageData = {
         conversation: conversationId,
         sender: senderId,
@@ -31,7 +31,7 @@ class MessageController {
         type
       };
 
-      // If file was uploaded
+      // Nếu có file được upload
       if (req.file) {
         messageData.fileUrl = `/uploads/${req.file.filename}`;
         messageData.fileName = req.file.originalname;
@@ -41,12 +41,12 @@ class MessageController {
 
       const message = await Message.create(messageData);
 
-      // Update conversation's last message
+      // Cập nhật tin nhắn cuối của conversation
       conversation.lastMessage = message._id;
       conversation.lastMessageAt = message.createdAt;
       await conversation.save();
 
-      // Populate sender info
+      // Điền thông tin người gửi
       await message.populate('sender', 'username fullName avatar');
 
       res.status(201).json({
@@ -70,7 +70,7 @@ class MessageController {
       const { page = 1, limit = 50 } = req.query;
       const userId = req.user.id;
 
-      // Verify user is participant
+      // Xác thực user là thành viên
       const conversation = await Conversation.findById(conversationId);
       if (!conversation) {
         return res.status(404).json({
@@ -132,7 +132,7 @@ class MessageController {
         });
       }
 
-      // Check if already read by this user
+      // Kiểm tra đã được đọc bởi user này chưa
       const alreadyRead = message.readBy.some(
         r => r.user.toString() === userId.toString()
       );
@@ -170,7 +170,7 @@ class MessageController {
         });
       }
 
-      // Only sender can delete
+      // Chỉ người gửi mới có thể xoá
       if (message.sender.toString() !== userId.toString()) {
         return res.status(403).json({
           success: false,

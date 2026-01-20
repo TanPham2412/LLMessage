@@ -17,7 +17,7 @@ class AuthController {
     try {
       const { username, email, password, fullName } = req.body;
 
-      // Check if user already exists
+      // Kiểm tra user đã tồn tại chưa
       const existingUser = await User.findOne({
         $or: [{ email }, { username }]
       });
@@ -29,7 +29,7 @@ class AuthController {
         });
       }
 
-      // Create new user
+      // Tạo user mới
       const user = await User.create({
         username,
         email,
@@ -37,7 +37,7 @@ class AuthController {
         fullName: fullName || username
       });
 
-      // Generate token
+      // Tạo token
       const token = this.generateToken(user._id);
 
       res.status(201).json({
@@ -77,7 +77,7 @@ class AuthController {
         });
       }
 
-      // Check password
+      // Kiểm tra mật khẩu
       const isPasswordValid = await user.comparePassword(password);
 
       if (!isPasswordValid) {
@@ -87,7 +87,7 @@ class AuthController {
         });
       }
 
-      // Update online status
+      // Cập nhật trạng thái online
       user.isOnline = true;
       user.lastSeen = Date.now();
       await user.save();
@@ -117,7 +117,7 @@ class AuthController {
     try {
       const userId = req.user.id;
 
-      // Update online status
+      // Cập nhật trạng thái online
       await User.findByIdAndUpdate(userId, {
         isOnline: false,
         lastSeen: Date.now()
@@ -202,7 +202,7 @@ class AuthController {
 
       const user = await User.findById(userId).select('+password');
 
-      // Verify current password
+      // Xác thực mật khẩu hiện tại
       const isPasswordValid = await user.comparePassword(currentPassword);
       if (!isPasswordValid) {
         return res.status(400).json({
@@ -211,7 +211,7 @@ class AuthController {
         });
       }
 
-      // Update password
+      // Cập nhật mật khẩu
       user.password = newPassword;
       await user.save();
 

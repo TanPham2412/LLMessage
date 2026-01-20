@@ -75,7 +75,7 @@ class ChatHome extends Component {
     try {
       const response = await api.getUnreadNotificationCount();
       if (response.success) {
-        // Load friend requests
+        // Tải danh sách lời mời kết bạn
         const friendReqResponse = await api.getFriendRequests();
         const friendRequestCount = friendReqResponse.success ? friendReqResponse.data.length : 0;
         

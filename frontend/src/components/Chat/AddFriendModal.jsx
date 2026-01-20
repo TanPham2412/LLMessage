@@ -21,7 +21,7 @@ class AddFriendModal extends Component {
     const searchQuery = e.target.value;
     this.setState({ searchQuery });
 
-    // Clear previous timeout
+    // Xoá timeout trước đó
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout);
     }
