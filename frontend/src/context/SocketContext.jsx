@@ -53,7 +53,14 @@ export class SocketProvider extends Component {
 
     this.socketService.connect(token);
 
+    // Setup online-users listener BEFORE connection completes
+    this.socketService.on('online-users', (data) => {
+      console.log('📋 SocketContext received online users:', data.userIds);
+      this.setState({ onlineUsers: data.userIds || [] });
+    });
+
     this.socketService.on('connect', () => {
+      console.log('✅ SocketContext: Socket connected');
       this.setState({ connected: true });
     });
 
@@ -62,15 +69,21 @@ export class SocketProvider extends Component {
     });
 
     this.socketService.onUserOnline((data) => {
-      this.setState(prevState => ({
-        onlineUsers: [...prevState.onlineUsers, data.userId]
-      }));
+      console.log('✅ User came online:', data.userId);
+      this.setState(prevState => {
+        if (!prevState.onlineUsers.includes(data.userId)) {
+          return { onlineUsers: [...prevState.onlineUsers, data.userId] };
+        }
+        return null;
+      });
     });
 
     this.socketService.onUserOffline((data) => {
+      console.log('❌ User went offline:', data.userId);
       this.setState(prevState => ({
         onlineUsers: prevState.onlineUsers.filter(id => id !== data.userId)
       }));
+      // Don't handle lastSeen here - let ChatContext handle it
     });
   };
 

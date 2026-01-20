@@ -176,6 +176,37 @@ class APIService {
     const response = await this.client.get('/messages/admin/all', { params });
     return response.data;
   }
+
+  // Notification methods
+  async getNotifications(params = {}) {
+    const response = await this.client.get('/notifications', { params });
+    return response.data;
+  }
+
+  async getUnreadNotificationCount() {
+    const response = await this.client.get('/notifications/unread-count');
+    return response.data;
+  }
+
+  async markNotificationAsRead(notificationId) {
+    const response = await this.client.put(`/notifications/${notificationId}/read`);
+    return response.data;
+  }
+
+  async markAllNotificationsAsRead() {
+    const response = await this.client.put('/notifications/mark-all-read');
+    return response.data;
+  }
+
+  async deleteNotification(notificationId) {
+    const response = await this.client.delete(`/notifications/${notificationId}`);
+    return response.data;
+  }
+
+  async clearAllNotifications() {
+    const response = await this.client.delete('/notifications');
+    return response.data;
+  }
 }
 
 export default new APIService();
