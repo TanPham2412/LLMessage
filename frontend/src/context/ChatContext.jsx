@@ -30,7 +30,7 @@ export class ChatProvider extends Component {
       this.loadFriends();
       this.loadFriendRequests();
       
-      // Delay setup to ensure socket is connected
+      // Trì hoãn setup để đảm bảo socket đã kết nối
       setTimeout(() => {
         this.setupSocketListeners();
       }, 500);
@@ -53,7 +53,7 @@ export class ChatProvider extends Component {
 
     console.log('✅ Setting up ChatContext socket listeners');
 
-    // Use direct socket access for user-offline event
+    // Sử dụng direct socket access cho sự kiện user-offline
     socketService.socket.on('user-offline', (data) => {
       console.log('❌ ChatContext received user-offline:', {
         userId: data.userId,
@@ -62,7 +62,7 @@ export class ChatProvider extends Component {
       });
       
       this.setState(prevState => {
-        // Update lastSeen in currentConversation if this user is the participant
+        // Cập nhật lastSeen trong currentConversation nếu user này là người tham gia
         let updatedConversation = prevState.currentConversation;
         if (updatedConversation?.participants) {
           const oldParticipant = updatedConversation.participants.find(p => p._id === data.userId);
@@ -80,7 +80,7 @@ export class ChatProvider extends Component {
           };
         }
         
-        // Update lastSeen in conversations list
+        // Cập nhật lastSeen trong danh sách conversations
         const updatedConversations = prevState.conversations.map(conv => ({
           ...conv,
           participants: conv.participants?.map(p =>
@@ -97,11 +97,11 @@ export class ChatProvider extends Component {
       });
     });
 
-    // Use direct socket access for user-online event  
+    // Sử dụng direct socket access cho sự kiện user-online
     socketService.socket.on('user-online', (data) => {
       console.log('✅ ChatContext received user-online:', data.userId);
       this.setState(prevState => {
-        // Update currentConversation
+        // Cập nhật currentConversation
         let updatedConversation = prevState.currentConversation;
         if (updatedConversation?.participants) {
           updatedConversation = {
@@ -112,7 +112,7 @@ export class ChatProvider extends Component {
           };
         }
         
-        // Update conversations list
+        // Cập nhật danh sách conversations
         const updatedConversations = prevState.conversations.map(conv => ({
           ...conv,
           participants: conv.participants?.map(p =>
@@ -241,7 +241,7 @@ export class ChatProvider extends Component {
           messages: [...prevState.messages, newMessage]
         }));
 
-        // Emit via socket
+        // Gửi qua socket
         const { socketService } = this.context;
         const recipientId = currentConversation.participants.find(
           p => p._id !== localStorage.getItem('userId')

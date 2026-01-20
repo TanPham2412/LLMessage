@@ -31,13 +31,13 @@ export class SocketProvider extends Component {
     const token = this.context?.token || localStorage.getItem('token');
     const prevToken = prevState.currentToken;
     
-    // Connect when token becomes available
+    // Kết nối khi token trở nên khả dụng
     if (token && !prevToken) {
       this.setState({ currentToken: token });
       this.connectSocket(token);
     }
     
-    // Disconnect when token is removed
+    // Ngắt kết nối khi token bị xóa
     if (!token && prevToken) {
       this.setState({ currentToken: null });
       this.disconnectSocket();
@@ -53,7 +53,7 @@ export class SocketProvider extends Component {
 
     this.socketService.connect(token);
 
-    // Setup online-users listener BEFORE connection completes
+    // Cài đặt listener online-users TRƯỚC KHI connection hoàn tất
     this.socketService.on('online-users', (data) => {
       console.log('📋 SocketContext received online users:', data.userIds);
       this.setState({ onlineUsers: data.userIds || [] });
@@ -83,7 +83,7 @@ export class SocketProvider extends Component {
       this.setState(prevState => ({
         onlineUsers: prevState.onlineUsers.filter(id => id !== data.userId)
       }));
-      // Don't handle lastSeen here - let ChatContext handle it
+      // Không xử lý lastSeen ở đây - để ChatContext xử lý
     });
   };
 

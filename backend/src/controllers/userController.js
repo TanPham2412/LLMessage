@@ -114,7 +114,7 @@ class UserController {
       const { id } = req.params;
       const updateData = req.body;
 
-      // Remove sensitive fields
+      // Xoá các trường nhạy cảm
       delete updateData.password;
       delete updateData.role;
 

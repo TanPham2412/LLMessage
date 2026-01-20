@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 const DatabaseConfig = require('./config/db');
 const SocketHandler = require('./config/socket');
 
-// Load environment variables
+// Tải biến môi trường
 dotenv.config();
 
 class AppServer {
@@ -29,37 +29,37 @@ class AppServer {
   }
 
   initializeMiddleware() {
-    // CORS
+    // Cấu hình CORS
     this.app.use(cors({
       origin: process.env.CLIENT_URL || 'http://localhost:3000',
       credentials: true
     }));
 
-    // Body parser
+    // Cấu hình Body parser
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    // Static files for uploads
+    // Cấu hình static files cho uploads
     this.app.use('/uploads', express.static('uploads'));
   }
 
   initializeRoutes() {
-    // Initialize socket handler first
+    // Khởi tạo socket handler trước
     this.socketHandler = new SocketHandler(this.io);
     
-    // Routes
+    // Định nghĩa Routes
     const authRoutes = require('./routes/authRoutes');
     const userRoutes = require('./routes/userRoutes');
     const messageRoutes = require('./routes/messageRoutes');
     const friendRoutes = require('./routes/friendRoutes');
     const notificationRoutes = require('./routes/notificationRoutes');
 
-    // Inject socket handler into friend routes
+    // Truyền socket handler vào friend routes
     const FriendController = require('./controllers/friendController');
     const friendController = new FriendController();
     friendController.setSocketHandler(this.socketHandler);
     
-    // Store controller instance for routes to use
+    // Lưu controller instance để routes sử dụng
     this.app.locals.friendController = friendController;
 
     this.app.use('/api/auth', authRoutes);
@@ -68,7 +68,7 @@ class AppServer {
     this.app.use('/api/friends', friendRoutes);
     this.app.use('/api/notifications', notificationRoutes);
 
-    // Health check
+    // Endpoint kiểm tra sức khỏe
     this.app.get('/api/health', (req, res) => {
       res.json({ status: 'OK', message: 'Server is running' });
     });
@@ -80,10 +80,10 @@ class AppServer {
 
   async start() {
     try {
-      // Connect to database
+      // Kết nối database
       await this.db.connect();
 
-      // Start server
+      // Khởi động server
       this.server.listen(this.port, () => {
         console.log(`✅ Server running on port ${this.port}`);
         console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
@@ -95,7 +95,7 @@ class AppServer {
   }
 }
 
-// Start the server
+// Khởi động server
 const server = new AppServer();
 server.start();
 
