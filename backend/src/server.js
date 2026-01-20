@@ -44,16 +44,29 @@ class AppServer {
   }
 
   initializeRoutes() {
+    // Initialize socket handler first
+    this.socketHandler = new SocketHandler(this.io);
+    
     // Routes
     const authRoutes = require('./routes/authRoutes');
     const userRoutes = require('./routes/userRoutes');
     const messageRoutes = require('./routes/messageRoutes');
     const friendRoutes = require('./routes/friendRoutes');
+    const notificationRoutes = require('./routes/notificationRoutes');
+
+    // Inject socket handler into friend routes
+    const FriendController = require('./controllers/friendController');
+    const friendController = new FriendController();
+    friendController.setSocketHandler(this.socketHandler);
+    
+    // Store controller instance for routes to use
+    this.app.locals.friendController = friendController;
 
     this.app.use('/api/auth', authRoutes);
     this.app.use('/api/users', userRoutes);
     this.app.use('/api/messages', messageRoutes);
     this.app.use('/api/friends', friendRoutes);
+    this.app.use('/api/notifications', notificationRoutes);
 
     // Health check
     this.app.get('/api/health', (req, res) => {
@@ -62,8 +75,7 @@ class AppServer {
   }
 
   initializeSocket() {
-    const socketHandler = new SocketHandler(this.io);
-    socketHandler.initialize();
+    this.socketHandler.initialize();
   }
 
   async start() {
