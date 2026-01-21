@@ -1,7 +1,16 @@
 const User = require('../models/User');
 const Conversation = require('../models/Conversation');
+const Notification = require('../models/Notification');
 
 class FriendController {
+  constructor(socketHandler = null) {
+    this.socketHandler = socketHandler;
+  }
+
+  setSocketHandler(socketHandler) {
+    this.socketHandler = socketHandler;
+  }
+
   async sendFriendRequest(req, res) {
     try {
       const { recipientId } = req.body;
@@ -10,7 +19,7 @@ class FriendController {
       if (senderId === recipientId) {
         return res.status(400).json({
           success: false,
-          message: 'You cannot send friend request to yourself'
+          message: 'Bạn không thể gửi lời mời kết bạn cho chính mình'
         });
       }
 
@@ -22,19 +31,31 @@ class FriendController {
       if (!recipient) {
         return res.status(404).json({
           success: false,
-          message: 'User not found'
+          message: 'Không tìm thấy người dùng'
         });
       }
 
-      // Check if already friends
+      // Kiểm tra đã là bạn bè chưa
       if (sender.friends.includes(recipientId)) {
         return res.status(400).json({
           success: false,
-          message: 'You are already friends'
+          message: 'Bạn đã là bạn bè rồi'
         });
       }
 
-      // Check if request already sent
+      // Kiểm tra đã gửi lời mời chưa (trong sentFriendRequests của người gửi)
+      const alreadySent = sender.sentFriendRequests.find(
+        req => req.to.toString() === recipientId
+      );
+
+      if (alreadySent) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn đã gửi lời mời kết bạn rồi'
+        });
+      }
+
+      // Kiểm tra lời mời có tồn tại trong friendRequests của người nhận không
       const existingRequest = recipient.friendRequests.find(
         req => req.from.toString() === senderId
       );
@@ -42,17 +63,43 @@ class FriendController {
       if (existingRequest) {
         return res.status(400).json({
           success: false,
-          message: 'Friend request already sent'
+          message: 'Lời mời kết bạn đã tồn tại'
         });
       }
 
-      // Add to recipient's friend requests
+      // Thêm vào danh sách lời mời kết bạn của người nhận
       recipient.friendRequests.push({ from: senderId });
       await recipient.save();
 
-      // Add to sender's sent requests
+      // Thêm vào danh sách đã gửi của người gửi
       sender.sentFriendRequests.push({ to: recipientId });
       await sender.save();
+
+      // Create notification in database
+      await Notification.create({
+        recipient: recipientId,
+        sender: senderId,
+        type: 'friend-request',
+        title: 'Lời mời kết bạn',
+        message: `${sender.fullName || sender.username} đã gửi lời mời kết bạn`,
+        data: {
+          requestId: recipient.friendRequests[recipient.friendRequests.length - 1]._id
+        }
+      });
+
+      // Gửi thông báo real-time cho người nhận
+      if (this.socketHandler) {
+        this.socketHandler.sendNotificationToUser(recipientId, 'friend-request-received', {
+          requestId: recipient.friendRequests[recipient.friendRequests.length - 1]._id,
+          from: {
+            _id: sender._id,
+            username: sender.username,
+            fullName: sender.fullName,
+            avatar: sender.avatar
+          },
+          createdAt: new Date()
+        });
+      }
 
       res.json({
         success: true,
@@ -87,27 +134,53 @@ class FriendController {
 
       const senderId = user.friendRequests[requestIndex].from;
 
-      // Add to friends list
+      // Thêm vào danh sách bạn bè
       user.friends.push(senderId);
       user.friendRequests.splice(requestIndex, 1);
       await user.save();
 
-      // Add current user to sender's friends
+      // Thêm user hiện tại vào danh sách bạn bè của người gửi
       const sender = await User.findById(senderId);
       sender.friends.push(userId);
       
-      // Remove from sent requests
+      // Xoá khỏi danh sách đã gửi
       sender.sentFriendRequests = sender.sentFriendRequests.filter(
         req => req.to.toString() !== userId.toString()
       );
       await sender.save();
 
-      // Create private conversation
+      // Tạo cuộc trò chuyện riêng tư
       const conversation = await Conversation.create({
         participants: [userId, senderId],
         type: 'private',
         createdBy: userId
       });
+
+      // Tạo thông báo trong database
+      await Notification.create({
+        recipient: senderId,
+        sender: userId,
+        type: 'friend-accepted',
+        title: 'Chấp nhận kết bạn',
+        message: `${user.fullName || user.username} đã chấp nhận lời mời kết bạn của bạn`,
+        data: {
+          conversationId: conversation._id
+        }
+      });
+
+      // Send real-time notification to sender
+      if (this.socketHandler) {
+        this.socketHandler.sendNotificationToUser(senderId, 'friend-request-accepted', {
+          from: {
+            _id: user._id,
+            username: user.username,
+            fullName: user.fullName,
+            avatar: user.avatar
+          },
+          message: `${user.fullName || user.username} đã chấp nhận lời mời kết bạn của bạn`,
+          createdAt: new Date()
+        });
+      }
 
       res.json({
         success: true,
@@ -145,12 +218,39 @@ class FriendController {
       user.friendRequests.splice(requestIndex, 1);
       await user.save();
 
-      // Remove from sender's sent requests
+      // Xoá khỏi danh sách đã gửi của người gửi
       const sender = await User.findById(senderId);
       sender.sentFriendRequests = sender.sentFriendRequests.filter(
         req => req.to.toString() !== userId.toString()
       );
       await sender.save();
+
+      // Create notification in database
+      await Notification.create({
+        recipient: senderId,
+        sender: userId,
+        type: 'friend-rejected',
+        title: 'Từ chối kết bạn',
+        message: `${user.fullName || user.username} đã từ chối lời mời kết bạn của bạn`,
+        data: {}
+      });
+
+      // Send real-time notification to sender
+      if (this.socketHandler) {
+        console.log(`📢 Sending rejection notification to sender: ${senderId}`);
+        console.log(`   Rejected by: ${user.fullName || user.username} (${userId})`);
+        
+        this.socketHandler.sendNotificationToUser(senderId, 'friend-request-rejected', {
+          from: {
+            _id: user._id,
+            username: user.username,
+            fullName: user.fullName,
+            avatar: user.avatar
+          },
+          message: `${user.fullName || user.username} đã từ chối lời mời kết bạn của bạn`,
+          createdAt: new Date()
+        });
+      }
 
       res.json({
         success: true,
@@ -247,7 +347,7 @@ class FriendController {
         participants: userId,
         isActive: true
       })
-        .populate('participants', 'username fullName avatar isOnline')
+        .populate('participants', 'username fullName avatar isOnline lastSeen')
         .populate('lastMessage')
         .sort({ lastMessageAt: -1 });
 
@@ -308,4 +408,4 @@ class FriendController {
   }
 }
 
-module.exports = new FriendController();
+module.exports = FriendController;

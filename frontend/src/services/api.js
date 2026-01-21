@@ -10,7 +10,7 @@ class APIService {
       }
     });
 
-    // Request interceptor
+    // Interceptor cho request
     this.client.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
@@ -24,7 +24,7 @@ class APIService {
       }
     );
 
-    // Response interceptor
+    // Interceptor cho response
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
@@ -38,7 +38,7 @@ class APIService {
     );
   }
 
-  // Auth methods
+  // Các phương thức xác thực
   async register(data) {
     const response = await this.client.post('/auth/register', data);
     return response.data;
@@ -69,7 +69,7 @@ class APIService {
     return response.data;
   }
 
-  // User methods
+  // Các phương thức quản lý user
   async getAllUsers(params = {}) {
     const response = await this.client.get('/users', { params });
     return response.data;
@@ -100,7 +100,7 @@ class APIService {
     return response.data;
   }
 
-  // Friend methods
+  // Các phương thức quản lý bạn bè
   async sendFriendRequest(recipientId) {
     const response = await this.client.post('/friends/request', { recipientId });
     return response.data;
@@ -131,7 +131,7 @@ class APIService {
     return response.data;
   }
 
-  // Conversation methods
+  // Các phương thức quản lý cuộc trò chuyện
   async getConversations() {
     const response = await this.client.get('/friends/conversations');
     return response.data;
@@ -142,7 +142,7 @@ class APIService {
     return response.data;
   }
 
-  // Message methods
+  // Các phương thức quản lý tin nhắn
   async sendMessage(data) {
     const response = await this.client.post('/messages', data);
     return response.data;
@@ -174,6 +174,37 @@ class APIService {
 
   async getAllMessages(params = {}) {
     const response = await this.client.get('/messages/admin/all', { params });
+    return response.data;
+  }
+
+  // Notification methods
+  async getNotifications(params = {}) {
+    const response = await this.client.get('/notifications', { params });
+    return response.data;
+  }
+
+  async getUnreadNotificationCount() {
+    const response = await this.client.get('/notifications/unread-count');
+    return response.data;
+  }
+
+  async markNotificationAsRead(notificationId) {
+    const response = await this.client.put(`/notifications/${notificationId}/read`);
+    return response.data;
+  }
+
+  async markAllNotificationsAsRead() {
+    const response = await this.client.put('/notifications/mark-all-read');
+    return response.data;
+  }
+
+  async deleteNotification(notificationId) {
+    const response = await this.client.delete(`/notifications/${notificationId}`);
+    return response.data;
+  }
+
+  async clearAllNotifications() {
+    const response = await this.client.delete('/notifications');
     return response.data;
   }
 }

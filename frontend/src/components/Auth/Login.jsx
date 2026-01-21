@@ -10,7 +10,7 @@ class Login extends Component {
     super(props);
     
     this.state = {
-      email: '',
+      loginId: '',
       password: '',
       error: '',
       loading: false,
@@ -28,16 +28,16 @@ class Login extends Component {
   handleSubmit = async (e) => {
     e.preventDefault();
     
-    const { email, password } = this.state;
+    const { loginId, password } = this.state;
 
-    if (!email || !password) {
+    if (!loginId || !password) {
       this.setState({ error: 'Vui lòng điền đầy đủ thông tin' });
       return;
     }
 
     this.setState({ loading: true });
 
-    const result = await this.context.login({ email, password });
+    const result = await this.context.login({ loginId, password });
 
     if (result.success) {
       this.setState({ redirect: true });
@@ -50,7 +50,7 @@ class Login extends Component {
   };
 
   render() {
-    const { email, password, error, loading, redirect } = this.state;
+    const { loginId, password, error, loading, redirect } = this.state;
 
     if (redirect) {
       return <Navigate to="/" replace />;
@@ -66,14 +66,14 @@ class Login extends Component {
             {error && <div className="error-message">{error}</div>}
 
             <div className="form-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="loginId">Tên đăng nhập hoặc Email</label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={email}
+                type="text"
+                id="loginId"
+                name="loginId"
+                value={loginId}
                 onChange={this.handleChange}
-                placeholder="Nhập email của bạn"
+                placeholder="Nhập tên đăng nhập hoặc email"
                 disabled={loading}
               />
             </div>

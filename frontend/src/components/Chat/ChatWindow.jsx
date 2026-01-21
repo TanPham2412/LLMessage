@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { ChatContext } from '../../context/ChatContext.jsx';
+import { getTimeAgo } from '../../utils/timeUtils';
 
 class ChatWindow extends Component {
   static contextType = ChatContext;
@@ -9,10 +10,25 @@ class ChatWindow extends Component {
     
     this.state = {
       message: '',
-      selectedFile: null
+      selectedFile: null,
+      currentTime: Date.now() // Track current time for real-time updates
     };
 
     this.messagesEndRef = React.createRef();
+    this.timeUpdateInterval = null;
+  }
+
+  componentDidMount() {
+    // Cập nhật thời gian mỗi 10 giây cho trạng thái real-time
+    this.timeUpdateInterval = setInterval(() => {
+      this.setState({ currentTime: Date.now() });
+    }, 10000); // Cập nhật mỗi 10 giây
+  }
+
+  componentWillUnmount() {
+    if (this.timeUpdateInterval) {
+      clearInterval(this.timeUpdateInterval);
+    }
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -56,6 +72,36 @@ class ChatWindow extends Component {
     });
   };
 
+  renderOnlineStatus = () => {
+    const { currentConversation, currentUserId, onlineUsers } = this.context;
+    
+    if (!currentConversation?.participants) return null;
+    
+    const participant = currentConversation.participants.find(
+      p => p._id !== currentUserId
+    );
+    
+    if (!participant) return null;
+    
+    const isOnline = onlineUsers.has(participant._id);
+    
+    if (isOnline) {
+      return (
+        <div className="chat-header-status online">
+          <span className="status-dot"></span>
+          Trực tuyến
+        </div>
+      );
+    } else {
+      const statusText = participant.lastSeen ? getTimeAgo(participant.lastSeen) : 'Ngoại tuyến';
+      return (
+        <div className="chat-header-status offline">
+          {statusText}
+        </div>
+      );
+    }
+  };
+
   render() {
     const { currentConversation, messages, loading } = this.context;
     const { message, selectedFile } = this.state;
@@ -73,11 +119,26 @@ class ChatWindow extends Component {
     return (
       <div className="chat-window">
         <div className="chat-window-header">
-          <h3>
-            {currentConversation.participants
-              ?.find(p => p._id !== currentUserId)
-              ?.fullName || 'Chat'}
-          </h3>
+          <div className="chat-window-header-info">
+            <div className="chat-header-avatar">
+              {(currentConversation.participants
+                ?.find(p => p._id !== currentUserId)
+                ?.fullName || 'U')[0].toUpperCase()}
+            </div>
+            <div>
+              <h3>
+                {currentConversation.participants
+                  ?.find(p => p._id !== currentUserId)
+                  ?.fullName || 'Chat'}
+              </h3>
+              {this.renderOnlineStatus()}
+            </div>
+          </div>
+          <div className="chat-header-actions">
+            <button className="chat-header-btn" title="Gọi thoại">📞</button>
+            <button className="chat-header-btn" title="Gọi video">📹</button>
+            <button className="chat-header-btn" title="Thông tin">ℹ️</button>
+          </div>
         </div>
 
         <div className="chat-messages">
@@ -114,7 +175,7 @@ class ChatWindow extends Component {
         <form className="chat-input-form" onSubmit={this.handleSendMessage}>
           {selectedFile && (
             <div className="selected-file">
-              Selected: {selectedFile.name}
+              📎 {selectedFile.name}
               <button
                 type="button"
                 onClick={() => this.setState({ selectedFile: null })}
@@ -131,7 +192,7 @@ class ChatWindow extends Component {
               onChange={this.handleFileSelect}
               style={{ display: 'none' }}
             />
-            <label htmlFor="file-upload" className="btn-file">
+            <label htmlFor="file-upload" className="btn-file" title="Đính kèm file">
               📎
             </label>
 
@@ -139,12 +200,12 @@ class ChatWindow extends Component {
               type="text"
               value={message}
               onChange={this.handleMessageChange}
-              placeholder="Nhập tin nhắn..."
+              placeholder="Aa"
               className="message-input"
             />
 
-            <button type="submit" className="btn-send">
-              Gửi
+            <button type="submit" className="btn-send" disabled={!message.trim() && !selectedFile} title="Gửi">
+              ➤
             </button>
           </div>
         </form>

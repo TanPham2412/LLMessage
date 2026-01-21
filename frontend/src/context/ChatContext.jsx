@@ -29,7 +29,11 @@ export class ChatProvider extends Component {
       this.loadConversations();
       this.loadFriends();
       this.loadFriendRequests();
-      this.setupSocketListeners();
+      
+      // Trì hoãn setup để đảm bảo socket đã kết nối
+      setTimeout(() => {
+        this.setupSocketListeners();
+      }, 500);
     }
   }
 
@@ -39,6 +43,89 @@ export class ChatProvider extends Component {
 
   setupSocketListeners = () => {
     const { socketService } = this.context;
+
+    if (!socketService || !socketService.socket) {
+      console.error('❌ SocketService or socket not available in setupSocketListeners');
+      // Retry after a delay
+      setTimeout(() => this.setupSocketListeners(), 500);
+      return;
+    }
+
+    console.log('✅ Setting up ChatContext socket listeners');
+
+    // Sử dụng direct socket access cho sự kiện user-offline
+    socketService.socket.on('user-offline', (data) => {
+      console.log('❌ ChatContext received user-offline:', {
+        userId: data.userId,
+        lastSeen: data.lastSeen,
+        lastSeenDate: new Date(data.lastSeen).toLocaleString()
+      });
+      
+      this.setState(prevState => {
+        // Cập nhật lastSeen trong currentConversation nếu user này là người tham gia
+        let updatedConversation = prevState.currentConversation;
+        if (updatedConversation?.participants) {
+          const oldParticipant = updatedConversation.participants.find(p => p._id === data.userId);
+          console.log('🔄 Updating participant in currentConversation:', {
+            participantId: data.userId,
+            oldLastSeen: oldParticipant?.lastSeen,
+            newLastSeen: data.lastSeen
+          });
+          
+          updatedConversation = {
+            ...updatedConversation,
+            participants: updatedConversation.participants.map(p =>
+              p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
+            )
+          };
+        }
+        
+        // Cập nhật lastSeen trong danh sách conversations
+        const updatedConversations = prevState.conversations.map(conv => ({
+          ...conv,
+          participants: conv.participants?.map(p =>
+            p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
+          )
+        }));
+        
+        console.log('✅ Updated currentConversation:', updatedConversation);
+        
+        return { 
+          currentConversation: updatedConversation,
+          conversations: updatedConversations
+        };
+      });
+    });
+
+    // Sử dụng direct socket access cho sự kiện user-online
+    socketService.socket.on('user-online', (data) => {
+      console.log('✅ ChatContext received user-online:', data.userId);
+      this.setState(prevState => {
+        // Cập nhật currentConversation
+        let updatedConversation = prevState.currentConversation;
+        if (updatedConversation?.participants) {
+          updatedConversation = {
+            ...updatedConversation,
+            participants: updatedConversation.participants.map(p =>
+              p._id === data.userId ? { ...p, lastSeen: null } : p
+            )
+          };
+        }
+        
+        // Cập nhật danh sách conversations
+        const updatedConversations = prevState.conversations.map(conv => ({
+          ...conv,
+          participants: conv.participants?.map(p =>
+            p._id === data.userId ? { ...p, lastSeen: null } : p
+          )
+        }));
+        
+        return { 
+          currentConversation: updatedConversation,
+          conversations: updatedConversations
+        };
+      });
+    });
 
     socketService.onReceiveMessage((message) => {
       this.handleNewMessage(message);
@@ -59,6 +146,10 @@ export class ChatProvider extends Component {
 
   removeSocketListeners = () => {
     const { socketService } = this.context;
+    if (socketService?.socket) {
+      socketService.socket.off('user-offline');
+      socketService.socket.off('user-online');
+    }
     socketService.off('receive-message');
     socketService.off('user-typing');
     socketService.off('user-stop-typing');
@@ -150,7 +241,7 @@ export class ChatProvider extends Component {
           messages: [...prevState.messages, newMessage]
         }));
 
-        // Emit via socket
+        // Gửi qua socket
         const { socketService } = this.context;
         const recipientId = currentConversation.participants.find(
           p => p._id !== localStorage.getItem('userId')
@@ -238,8 +329,11 @@ export class ChatProvider extends Component {
   };
 
   render() {
+    const { onlineUsers } = this.context;
+    
     const contextValue = {
       ...this.state,
+      onlineUsers: new Set(onlineUsers || []),
       loadConversations: this.loadConversations,
       loadFriends: this.loadFriends,
       loadFriendRequests: this.loadFriendRequests,

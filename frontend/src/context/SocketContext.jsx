@@ -10,29 +10,36 @@ export class SocketProvider extends Component {
   constructor(props) {
     super(props);
     
+    this.socketService = new SocketService();
+    
     this.state = {
       connected: false,
-      onlineUsers: []
+      onlineUsers: [],
+      currentToken: null
     };
   }
 
   componentDidMount() {
-    const { token } = this.context;
+    const token = this.context?.token || localStorage.getItem('token');
     if (token) {
-      this.connectSocket();
+      this.setState({ currentToken: token });
+      this.connectSocket(token);
     }
   }
 
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    const { token } = this.context;
+  componentDidUpdate(prevProps, prevState) {
+    const token = this.context?.token || localStorage.getItem('token');
+    const prevToken = prevState.currentToken;
     
-    // Connect when token becomes available
-    if (token && !prevProps.token) {
-      this.connectSocket();
+    // Kết nối khi token trở nên khả dụng
+    if (token && !prevToken) {
+      this.setState({ currentToken: token });
+      this.connectSocket(token);
     }
     
-    // Disconnect when token is removed
-    if (!token && prevProps.token) {
+    // Ngắt kết nối khi token bị xóa
+    if (!token && prevToken) {
+      this.setState({ currentToken: null });
       this.disconnectSocket();
     }
   }
@@ -41,60 +48,71 @@ export class SocketProvider extends Component {
     this.disconnectSocket();
   }
 
-  connectSocket = () => {
-    const { token } = this.context;
-    
+  connectSocket = (token) => {
     if (!token) return;
 
-    socketService.connect(token);
+    this.socketService.connect(token);
 
-    socketService.on('connect', () => {
+    // Cài đặt listener online-users TRƯỚC KHI connection hoàn tất
+    this.socketService.on('online-users', (data) => {
+      console.log('📋 SocketContext received online users:', data.userIds);
+      this.setState({ onlineUsers: data.userIds || [] });
+    });
+
+    this.socketService.on('connect', () => {
+      console.log('✅ SocketContext: Socket connected');
       this.setState({ connected: true });
     });
 
-    socketService.on('disconnect', () => {
+    this.socketService.on('disconnect', () => {
       this.setState({ connected: false });
     });
 
-    socketService.onUserOnline((data) => {
-      this.setState(prevState => ({
-        onlineUsers: [...prevState.onlineUsers, data.userId]
-      }));
+    this.socketService.onUserOnline((data) => {
+      console.log('✅ User came online:', data.userId);
+      this.setState(prevState => {
+        if (!prevState.onlineUsers.includes(data.userId)) {
+          return { onlineUsers: [...prevState.onlineUsers, data.userId] };
+        }
+        return null;
+      });
     });
 
-    socketService.onUserOffline((data) => {
+    this.socketService.onUserOffline((data) => {
+      console.log('❌ User went offline:', data.userId);
       this.setState(prevState => ({
         onlineUsers: prevState.onlineUsers.filter(id => id !== data.userId)
       }));
+      // Không xử lý lastSeen ở đây - để ChatContext xử lý
     });
   };
 
   disconnectSocket = () => {
-    socketService.disconnect();
+    this.socketService.disconnect();
     this.setState({ connected: false, onlineUsers: [] });
   };
 
   emit = (event, data) => {
-    socketService.emit(event, data);
+    this.socketService.emit(event, data);
   };
 
   on = (event, callback) => {
-    socketService.on(event, callback);
+    this.socketService.on(event, callback);
   };
 
   off = (event, callback) => {
-    socketService.off(event, callback);
+    this.socketService.off(event, callback);
   };
 
   render() {
     const contextValue = {
       connected: this.state.connected,
       onlineUsers: this.state.onlineUsers,
-      socket: socketService.getSocket(),
+      socket: this.socketService.getSocket(),
       emit: this.emit,
       on: this.on,
       off: this.off,
-      socketService
+      socketService: this.socketService
     };
 
     return (

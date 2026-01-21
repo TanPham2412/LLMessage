@@ -30,16 +30,24 @@ class SocketHandler {
     const userId = socket.userId;
     console.log(`✅ User connected: ${userId}`);
 
-    // Store online user
+    // Lưu user online
     this.onlineUsers.set(userId, socket.id);
 
-    // Broadcast online status
+    // Cập nhật trạng thái online trong database
+    this.updateUserOnlineStatus(userId, true);
+
+    // Gửi danh sách users đang online cho user mới kết nối ngay lập tức
+    const onlineUserIds = this.getOnlineUsers();
+    console.log(`📤 Sending online users list to ${userId}:`, onlineUserIds);
+    socket.emit('online-users', { userIds: onlineUserIds });
+
+    // Phát trạng thái online đến tất cả users khác
     this.io.emit('user-online', { userId });
 
-    // Join user's personal room
+    // Tham gia vào room cá nhân của user
     socket.join(`user:${userId}`);
 
-    // Handle typing
+    // Xử lý sự kiện typing
     socket.on('typing', (data) => {
       socket.to(`user:${data.recipientId}`).emit('user-typing', {
         userId,
@@ -54,28 +62,59 @@ class SocketHandler {
       });
     });
 
-    // Handle new message
+    // Xử lý tin nhắn mới
     socket.on('send-message', (data) => {
-      // Emit to recipient
+      // Gửi đến người nhận
       socket.to(`user:${data.recipientId}`).emit('receive-message', data);
     });
 
-    // Handle join conversation
+    // Xử lý tham gia cuộc trò chuyện
     socket.on('join-conversation', (conversationId) => {
       socket.join(`conversation:${conversationId}`);
     });
 
-    // Handle leave conversation
+    // Xử lý rời khỏi cuộc trò chuyện
     socket.on('leave-conversation', (conversationId) => {
       socket.leave(`conversation:${conversationId}`);
     });
 
-    // Handle disconnect
-    socket.on('disconnect', () => {
+    // Xử lý yêu cầu lấy danh sách users online
+    socket.on('request-online-users', () => {
+      console.log(`📊 User ${userId} requested online users list`);
+      socket.emit('online-users', { userIds: this.getOnlineUsers() });
+    });
+
+    // Xử lý ngắt kết nối
+    socket.on('disconnect', async () => {
       console.log(`❌ User disconnected: ${userId}`);
       this.onlineUsers.delete(userId);
-      this.io.emit('user-offline', { userId });
+      
+      // Cập nhật lastSeen trong database và lấy timestamp
+      const lastSeen = new Date();
+      await this.updateUserOnlineStatus(userId, false, lastSeen);
+      
+      this.io.emit('user-offline', { userId, lastSeen });
     });
+  }
+
+  async updateUserOnlineStatus(userId, isOnline, lastSeen = new Date()) {
+    try {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(userId, {
+        isOnline,
+        lastSeen: isOnline ? null : lastSeen
+      });
+      console.log(`📝 Updated user ${userId}: isOnline=${isOnline}, lastSeen=${isOnline ? 'null' : lastSeen}`);
+    } catch (error) {
+      console.error('Update user online status error:', error);
+    }
+  }
+
+  // Phương thức hỗ trợ gửi thông báo
+  sendNotificationToUser(userId, event, data) {
+    console.log(`🔔 Emitting ${event} to room: user:${userId}`);
+    console.log(`   Data:`, JSON.stringify(data, null, 2));
+    this.io.to(`user:${userId}`).emit(event, data);
   }
 
   emitToUser(userId, event, data) {
