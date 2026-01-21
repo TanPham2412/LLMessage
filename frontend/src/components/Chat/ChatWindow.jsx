@@ -74,6 +74,7 @@ class ChatWindow extends Component {
 
   renderOnlineStatus = () => {
     const { currentConversation, currentUserId, onlineUsers } = this.context;
+    const { currentTime } = this.state; // Force re-render when currentTime changes
     
     if (!currentConversation?.participants) return null;
     
@@ -93,6 +94,7 @@ class ChatWindow extends Component {
         </div>
       );
     } else {
+      // Use currentTime to ensure recalculation on every timer tick
       const statusText = participant.lastSeen ? getTimeAgo(participant.lastSeen) : 'Ngoại tuyến';
       return (
         <div className="chat-header-status offline">
