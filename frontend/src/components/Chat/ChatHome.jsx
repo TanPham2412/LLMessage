@@ -5,6 +5,7 @@ import { SocketContext } from '../../context/SocketContext.jsx';
 import ConversationList from './ConversationList.jsx';
 import ChatWindow from './ChatWindow.jsx';
 import AddFriendModal from './AddFriendModal.jsx';
+import CreateGroupModal from './CreateGroupModal.jsx';
 import FriendNotifications from './FriendNotifications.jsx';
 import api from '../../services/api';
 import '../../styles/Chat.css';
@@ -19,6 +20,7 @@ class ChatHome extends Component {
       showSidebar: true,
       showUserMenu: false,
       showAddFriendModal: false,
+      showCreateGroupModal: false,
       showNotifications: false,
       notificationTab: 'requests',
       notificationCount: 0
@@ -121,6 +123,14 @@ class ChatHome extends Component {
     this.setState({ showAddFriendModal: false });
   };
 
+  handleOpenCreateGroup = () => {
+    this.setState({ showCreateGroupModal: true, showUserMenu: false });
+  };
+
+  handleCloseCreateGroup = () => {
+    this.setState({ showCreateGroupModal: false });
+  };
+
   toggleNotifications = () => {
     this.setState(prevState => ({
       showNotifications: !prevState.showNotifications,
@@ -211,7 +221,7 @@ class ChatHome extends Component {
                       <span className="menu-text">Thêm Bạn Bè</span>
                     </button>
                     
-                    <button className="user-menu-item" onClick={() => alert('Tính năng đang phát triển')}>
+                    <button className="user-menu-item" onClick={this.handleOpenCreateGroup}>
                       <span className="menu-icon">👫</span>
                       <span className="menu-text">Tạo Nhóm Chat</span>
                     </button>
@@ -261,6 +271,10 @@ class ChatHome extends Component {
 
         {this.state.showAddFriendModal && (
           <AddFriendModal onClose={this.handleCloseAddFriend} />
+        )}
+
+        {this.state.showCreateGroupModal && (
+          <CreateGroupModal onClose={this.handleCloseCreateGroup} />
         )}
       </div>
     );

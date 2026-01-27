@@ -36,6 +36,7 @@ export class AuthProvider extends Component {
           error: null
         });
         localStorage.setItem('user', JSON.stringify(response.data));
+        localStorage.setItem('userId', response.data._id);
       }
     } catch (error) {
       console.error('Load user error:', error);
@@ -81,6 +82,7 @@ export class AuthProvider extends Component {
         
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('userId', user._id); // Lưu userId riêng để dễ truy cập
         
         this.setState({
           user,
@@ -108,6 +110,7 @@ export class AuthProvider extends Component {
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('userId');
       this.setState({
         user: null,
         token: null,
@@ -120,6 +123,9 @@ export class AuthProvider extends Component {
   updateUser = (userData) => {
     this.setState({ user: userData });
     localStorage.setItem('user', JSON.stringify(userData));
+    if (userData._id) {
+      localStorage.setItem('userId', userData._id);
+    }
   };
 
   clearError = () => {

@@ -74,9 +74,20 @@ class ChatWindow extends Component {
 
   renderOnlineStatus = () => {
     const { currentConversation, currentUserId, onlineUsers } = this.context;
+    const { currentTime } = this.state; // Force re-render when currentTime changes
     
     if (!currentConversation?.participants) return null;
     
+    // Nếu là group, hiển thị số thành viên
+    if (currentConversation.type === 'group') {
+      return (
+        <div className="chat-header-status group">
+          {currentConversation.participants?.length || 0} thành viên
+        </div>
+      );
+    }
+    
+    // Nếu là private, hiển thị trạng thái online/offline
     const participant = currentConversation.participants.find(
       p => p._id !== currentUserId
     );
@@ -93,6 +104,7 @@ class ChatWindow extends Component {
         </div>
       );
     } else {
+      // Use currentTime to ensure recalculation on every timer tick
       const statusText = participant.lastSeen ? getTimeAgo(participant.lastSeen) : 'Ngoại tuyến';
       return (
         <div className="chat-header-status offline">
@@ -100,6 +112,34 @@ class ChatWindow extends Component {
         </div>
       );
     }
+  };
+
+  getConversationName = () => {
+    const { currentConversation } = this.context;
+    const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
+    
+    // Nếu là group, hiển thị tên nhóm
+    if (currentConversation.type === 'group') {
+      return currentConversation.name || 'Nhóm không tên';
+    }
+    
+    // Nếu là private, hiển thị tên người kia
+    const participant = currentConversation.participants?.find(p => p._id !== currentUserId);
+    return participant?.fullName || participant?.username || 'Chat';
+  };
+
+  getConversationAvatar = () => {
+    const { currentConversation } = this.context;
+    const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
+    
+    // Nếu là group, hiển thị icon nhóm
+    if (currentConversation.type === 'group') {
+      return '👥';
+    }
+    
+    // Nếu là private, hiển thị chữ cái đầu
+    const participant = currentConversation.participants?.find(p => p._id !== currentUserId);
+    return (participant?.fullName || 'U')[0].toUpperCase();
   };
 
   render() {
@@ -120,17 +160,11 @@ class ChatWindow extends Component {
       <div className="chat-window">
         <div className="chat-window-header">
           <div className="chat-window-header-info">
-            <div className="chat-header-avatar">
-              {(currentConversation.participants
-                ?.find(p => p._id !== currentUserId)
-                ?.fullName || 'U')[0].toUpperCase()}
+            <div className={`chat-header-avatar ${currentConversation.type === 'group' ? 'group-avatar' : ''}`}>
+              {this.getConversationAvatar()}
             </div>
             <div>
-              <h3>
-                {currentConversation.participants
-                  ?.find(p => p._id !== currentUserId)
-                  ?.fullName || 'Chat'}
-              </h3>
+              <h3>{this.getConversationName()}</h3>
               {this.renderOnlineStatus()}
             </div>
           </div>
