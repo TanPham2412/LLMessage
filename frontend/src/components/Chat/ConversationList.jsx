@@ -51,36 +51,8 @@ class ConversationList extends Component {
     return conversation.participants?.find(p => p._id !== currentUserId);
   };
 
-  getLastMessagePreview = (conversation) => {
-    const lastMessage = conversation.lastMessage;
-    
-    if (!lastMessage) {
-      return 'Chưa có tin nhắn';
-    }
-
-    // Nếu lastMessage là object (đã populated)
-    if (typeof lastMessage === 'object' && lastMessage.content) {
-      const content = lastMessage.content;
-      const maxLength = 35;
-      
-      // Xử lý theo loại tin nhắn
-      if (lastMessage.type === 'image') {
-        return '📷 Hình ảnh';
-      } else if (lastMessage.type === 'file') {
-        return '📎 ' + (lastMessage.fileName || 'Tệp đính kèm');
-      }
-      
-      // Tin nhắn text
-      return content.length > maxLength 
-        ? content.substring(0, maxLength) + '...'
-        : content;
-    }
-    
-    return 'Tin nhắn gần đây';
-  };
-
   render() {
-    const { conversations, currentConversation, loading, onlineUsers, conversationUnreadCounts } = this.context;
+    const { conversations, currentConversation, loading, onlineUsers } = this.context;
 
     return (
       <div className="conversation-list">
@@ -116,22 +88,13 @@ class ConversationList extends Component {
                     {this.getConversationName(conversation)}
                     {isGroup && <span className="group-badge">Nhóm</span>}
                   </div>
-                  <div className={`conversation-last-message ${
-                    conversationUnreadCounts[conversation._id] > 0 ? 'unread' : ''
-                  }`}>
+                  <div className="conversation-last-message">
                     {isGroup && `${conversation.participants?.length || 0} thành viên • `}
-                    {this.getLastMessagePreview(conversation)}
+                    Tin nhắn gần đây
                   </div>
                 </div>
-                <div className="conversation-meta">
-                  <div className="conversation-time">
-                    {this.formatTime(conversation.lastMessageAt)}
-                  </div>
-                  {conversationUnreadCounts[conversation._id] > 0 && (
-                    <div className="unread-badge">
-                      {conversationUnreadCounts[conversation._id]}
-                    </div>
-                  )}
+                <div className="conversation-time">
+                  {this.formatTime(conversation.lastMessageAt)}
                 </div>
               </div>
             );
