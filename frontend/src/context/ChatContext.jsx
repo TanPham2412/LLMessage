@@ -20,9 +20,13 @@ export class ChatProvider extends Component {
       error: null,
       typingUsers: []
     };
+
+    // Flag để prevent duplicate setup
+    this.listenersSetup = false;
   }
 
   componentDidMount() {
+    console.log('🎬 ChatProvider MOUNTED');
     // Chỉ load data nếu đã đăng nhập (có token)
     const token = localStorage.getItem('token');
     if (token) {
@@ -30,10 +34,8 @@ export class ChatProvider extends Component {
       this.loadFriends();
       this.loadFriendRequests();
       
-      // Trì hoãn setup để đảm bảo socket đã kết nối
-      setTimeout(() => {
-        this.setupSocketListeners();
-      }, 500);
+      // Setup listeners - CHỈ 1 LẦN
+      this.setupSocketListeners();
     }
   }
 
@@ -46,113 +48,151 @@ export class ChatProvider extends Component {
 
     if (!socketService || !socketService.socket) {
       console.error('❌ SocketService or socket not available in setupSocketListeners');
-      // Retry after a delay
-      setTimeout(() => this.setupSocketListeners(), 500);
+      // Retry after a delay if needed
+      if (!this.listenerSetupRetryCount || this.listenerSetupRetryCount < 5) {
+        this.listenerSetupRetryCount = (this.listenerSetupRetryCount || 0) + 1;
+        console.log(`⏳ Retrying setupSocketListeners (${this.listenerSetupRetryCount}/5)...`);
+        setTimeout(() => this.setupSocketListeners(), 500);
+      }
+      return;
+    }
+
+    // CRITICAL: Prevent duplicate setup
+    if (this.listenersSetup) {
+      console.warn('⚠️ Listeners already setup - skipping to prevent duplicates');
       return;
     }
 
     console.log('✅ Setting up ChatContext socket listeners');
+    this.listenerSetupRetryCount = 0;
 
-    // Sử dụng direct socket access cho sự kiện user-offline
-    socketService.socket.on('user-offline', (data) => {
-      console.log('❌ ChatContext received user-offline:', {
-        userId: data.userId,
-        lastSeen: data.lastSeen,
-        lastSeenDate: new Date(data.lastSeen).toLocaleString()
-      });
-      
-      this.setState(prevState => {
-        // Cập nhật lastSeen trong currentConversation nếu user này là người tham gia
-        let updatedConversation = prevState.currentConversation;
-        if (updatedConversation?.participants) {
-          const oldParticipant = updatedConversation.participants.find(p => p._id === data.userId);
-          console.log('🔄 Updating participant in currentConversation:', {
-            participantId: data.userId,
-            oldLastSeen: oldParticipant?.lastSeen,
-            newLastSeen: data.lastSeen
-          });
-          
-          updatedConversation = {
-            ...updatedConversation,
-            participants: updatedConversation.participants.map(p =>
-              p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
-            )
-          };
-        }
+    // Remove existing listeners first to prevent duplicates
+    this.removeSocketListeners();
+
+    // Sử dụng direct socket với bound methods
+    socketService.socket.on('user-offline', this.handleUserOffline);
+    socketService.socket.on('user-online', this.handleUserOnline);
+    socketService.socket.on('receive-message', this.handleReceiveMessage);
+    socketService.socket.on('user-typing', this.handleUserTyping);
+    socketService.socket.on('user-stop-typing', this.handleUserStopTyping);
+
+    // Mark as setup
+    this.listenersSetup = true;
+
+    console.log('✅ All ChatContext socket listeners registered');
+    console.log('📊 Listener count check:', {
+      receiveMessage: socketService.socket.listeners('receive-message').length
+    });
+  };
+
+  // Handler methods
+  handleUserOffline = (data) => {
+    console.log('❌ ChatContext received user-offline:', {
+      userId: data.userId,
+      lastSeen: data.lastSeen,
+      lastSeenDate: new Date(data.lastSeen).toLocaleString()
+    });
+    
+    this.setState(prevState => {
+      // Cập nhật lastSeen trong currentConversation nếu user này là người tham gia
+      let updatedConversation = prevState.currentConversation;
+      if (updatedConversation?.participants) {
+        const oldParticipant = updatedConversation.participants.find(p => p._id === data.userId);
+        console.log('🔄 Updating participant in currentConversation:', {
+          participantId: data.userId,
+          oldLastSeen: oldParticipant?.lastSeen,
+          newLastSeen: data.lastSeen
+        });
         
-        // Cập nhật lastSeen trong danh sách conversations
-        const updatedConversations = prevState.conversations.map(conv => ({
-          ...conv,
-          participants: conv.participants?.map(p =>
+        updatedConversation = {
+          ...updatedConversation,
+          participants: updatedConversation.participants.map(p =>
             p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
           )
-        }));
-        
-        console.log('✅ Updated currentConversation:', updatedConversation);
-        
-        return { 
-          currentConversation: updatedConversation,
-          conversations: updatedConversations
         };
-      });
+      }
+      
+      // Cập nhật lastSeen trong danh sách conversations
+      const updatedConversations = prevState.conversations.map(conv => ({
+        ...conv,
+        participants: conv.participants?.map(p =>
+          p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
+        )
+      }));
+      
+      console.log('✅ Updated currentConversation:', updatedConversation);
+      
+      return { 
+        currentConversation: updatedConversation,
+        conversations: updatedConversations
+      };
     });
+  };
 
-    // Sử dụng direct socket access cho sự kiện user-online
-    socketService.socket.on('user-online', (data) => {
-      console.log('✅ ChatContext received user-online:', data.userId);
-      this.setState(prevState => {
-        // Cập nhật currentConversation
-        let updatedConversation = prevState.currentConversation;
-        if (updatedConversation?.participants) {
-          updatedConversation = {
-            ...updatedConversation,
-            participants: updatedConversation.participants.map(p =>
-              p._id === data.userId ? { ...p, lastSeen: null } : p
-            )
-          };
-        }
-        
-        // Cập nhật danh sách conversations
-        const updatedConversations = prevState.conversations.map(conv => ({
-          ...conv,
-          participants: conv.participants?.map(p =>
+  handleUserOnline = (data) => {
+    console.log('✅ ChatContext received user-online:', data.userId);
+    this.setState(prevState => {
+      // Cập nhật currentConversation
+      let updatedConversation = prevState.currentConversation;
+      if (updatedConversation?.participants) {
+        updatedConversation = {
+          ...updatedConversation,
+          participants: updatedConversation.participants.map(p =>
             p._id === data.userId ? { ...p, lastSeen: null } : p
           )
-        }));
-        
-        return { 
-          currentConversation: updatedConversation,
-          conversations: updatedConversations
         };
-      });
-    });
-
-    socketService.onReceiveMessage((message) => {
-      this.handleNewMessage(message);
-    });
-
-    socketService.onUserTyping((data) => {
-      this.setState(prevState => ({
-        typingUsers: [...prevState.typingUsers, data.userId]
+      }
+      
+      // Cập nhật danh sách conversations
+      const updatedConversations = prevState.conversations.map(conv => ({
+        ...conv,
+        participants: conv.participants?.map(p =>
+          p._id === data.userId ? { ...p, lastSeen: null } : p
+        )
       }));
+      
+      return { 
+        currentConversation: updatedConversation,
+        conversations: updatedConversations
+      };
     });
+  };
 
-    socketService.onUserStopTyping((data) => {
-      this.setState(prevState => ({
-        typingUsers: prevState.typingUsers.filter(id => id !== data.userId)
-      }));
-    });
+  handleReceiveMessage = (message) => {
+    console.log('📩 ChatContext handleReceiveMessage called');
+    console.log('📊 Current listener count check - this should only appear ONCE per message');
+    this.handleNewMessage(message);
+  };
+
+  handleUserTyping = (data) => {
+    this.setState(prevState => ({
+      typingUsers: [...prevState.typingUsers, data.userId]
+    }));
+  };
+
+  handleUserStopTyping = (data) => {
+    this.setState(prevState => ({
+      typingUsers: prevState.typingUsers.filter(id => id !== data.userId)
+    }));
   };
 
   removeSocketListeners = () => {
     const { socketService } = this.context;
-    if (socketService?.socket) {
-      socketService.socket.off('user-offline');
-      socketService.socket.off('user-online');
+    if (!socketService || !socketService.socket) {
+      return;
     }
-    socketService.off('receive-message');
-    socketService.off('user-typing');
-    socketService.off('user-stop-typing');
+
+    console.log('🧹 Removing ChatContext socket listeners');
+
+    // Remove với exact callback references
+    socketService.socket.off('user-offline', this.handleUserOffline);
+    socketService.socket.off('user-online', this.handleUserOnline);
+    socketService.socket.off('receive-message', this.handleReceiveMessage);
+    socketService.socket.off('user-typing', this.handleUserTyping);
+    socketService.socket.off('user-stop-typing', this.handleUserStopTyping);
+
+    // Reset flag
+    this.listenersSetup = false;
   };
 
   loadConversations = async () => {
@@ -243,8 +283,9 @@ export class ChatProvider extends Component {
 
         // Gửi qua socket
         const { socketService } = this.context;
+        const currentUserId = localStorage.getItem('userId');
         const recipientId = currentConversation.participants.find(
-          p => p._id !== localStorage.getItem('userId')
+          p => p._id !== currentUserId
         )?._id;
 
         if (recipientId) {
@@ -261,12 +302,50 @@ export class ChatProvider extends Component {
   };
 
   handleNewMessage = (message) => {
+    // Lấy userId trực tiếp (giờ đã được lưu riêng trong AuthContext)
+    const currentUserId = localStorage.getItem('userId');
+    
+    console.log('📨 ChatContext handleNewMessage:', {
+      messageId: message._id,
+      messageConversation: message.conversation,
+      currentConversationId: this.state.currentConversation?._id,
+      messageSender: typeof message.sender === 'object' ? message.sender._id : message.sender,
+      currentUserId: currentUserId
+    });
+
+    // CRITICAL: Bỏ qua tin nhắn từ chính mình (đã được thêm vào state khi sendMessage)
+    const messageSenderId = typeof message.sender === 'object' 
+      ? message.sender._id?.toString() 
+      : message.sender?.toString();
+    
+    if (messageSenderId === currentUserId?.toString()) {
+      console.log('⏭️ Skipping own message - already added in sendMessage');
+      this.loadConversations(); // Cập nhật danh sách conversations cho lastMessage
+      return;
+    }
+
     const { currentConversation } = this.state;
 
-    if (currentConversation && message.conversation === currentConversation._id) {
+    // Convert both to string for comparison
+    const messageConvId = typeof message.conversation === 'object' 
+      ? message.conversation._id?.toString() 
+      : message.conversation?.toString();
+    const currentConvId = currentConversation?._id?.toString();
+
+    console.log('🔍 Comparing conversation IDs:', {
+      messageConvId,
+      currentConvId,
+      matches: messageConvId === currentConvId,
+      isOwnMessage: false
+    });
+
+    if (currentConversation && messageConvId === currentConvId) {
+      console.log('✅ Message from other user - adding to messages');
       this.setState(prevState => ({
         messages: [...prevState.messages, message]
       }));
+    } else {
+      console.log('⚠️ Message NOT for current conversation or no conversation selected');
     }
 
     this.loadConversations();
