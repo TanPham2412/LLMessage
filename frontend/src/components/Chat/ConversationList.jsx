@@ -51,8 +51,37 @@ class ConversationList extends Component {
     return conversation.participants?.find(p => p._id !== currentUserId);
   };
 
+  getLastMessagePreview = (conversation) => {
+    const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
+    const lastMessage = conversation.lastMessage;
+    
+    // Kiểm tra lastMessage có tồn tại không
+    if (!lastMessage || typeof lastMessage !== 'object') {
+      return 'Chưa có tin nhắn';
+    }
+
+    // Kiểm tra xem tin nhắn từ mình hay người khác
+    const senderId = lastMessage.sender?._id || lastMessage.sender;
+    const isOwnMessage = senderId === currentUserId;
+    const prefix = isOwnMessage ? 'Bạn: ' : '';
+    
+    // Hiển thị content dựa trên type
+    if (lastMessage.type === 'image') {
+      return `${prefix}📷 Hình ảnh`;
+    } else if (lastMessage.type === 'file') {
+      return `${prefix}📎 ${lastMessage.fileName || 'File'}`;
+    } else {
+      // Text message - giới hạn 30 ký tự
+      const content = lastMessage.content || '';
+      if (!content) return 'Chưa có tin nhắn';
+      return content.length > 30 
+        ? `${prefix}${content.substring(0, 30)}...` 
+        : `${prefix}${content}`;
+    }
+  };
+
   render() {
-    const { conversations, currentConversation, loading, onlineUsers } = this.context;
+    const { conversations, currentConversation, loading, onlineUsers, unreadCounts = {} } = this.context;
 
     return (
       <div className="conversation-list">
@@ -71,13 +100,15 @@ class ConversationList extends Component {
             const participant = this.getParticipant(conversation);
             const isOnline = participant ? onlineUsers.has(participant._id) : false;
             const isGroup = conversation.type === 'group';
+            const unreadCount = unreadCounts[conversation._id] || 0;
+            const hasUnread = unreadCount > 0;
             
             return (
               <div
                 key={conversation._id}
                 className={`conversation-item ${
                   currentConversation?._id === conversation._id ? 'active' : ''
-                }`}
+                } ${hasUnread ? 'has-unread' : ''}`}
                 onClick={() => this.handleSelectConversation(conversation)}
               >
                 <div className={`conversation-avatar ${isOnline && !isGroup ? 'online' : ''} ${isGroup ? 'group-avatar' : ''}`}>
@@ -88,13 +119,19 @@ class ConversationList extends Component {
                     {this.getConversationName(conversation)}
                     {isGroup && <span className="group-badge">Nhóm</span>}
                   </div>
-                  <div className="conversation-last-message">
-                    {isGroup && `${conversation.participants?.length || 0} thành viên • `}
-                    Tin nhắn gần đây
+                  <div className={`conversation-last-message ${hasUnread ? 'unread' : ''}`}>
+                    {this.getLastMessagePreview(conversation)}
                   </div>
                 </div>
-                <div className="conversation-time">
-                  {this.formatTime(conversation.lastMessageAt)}
+                <div className="conversation-meta">
+                  <div className="conversation-time">
+                    {this.formatTime(conversation.lastMessageAt)}
+                  </div>
+                  {hasUnread && (
+                    <div className="unread-badge">
+                      {unreadCount}
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -189,8 +189,6 @@ class ChatWindow extends Component {
         </div>
 
         <div className="chat-messages">
-          {loading && messages.length === 0 && <div className="loading">Đang tải tin nhắn...</div>}
-
           {messages.map((msg) => (
             <div
               key={msg._id}

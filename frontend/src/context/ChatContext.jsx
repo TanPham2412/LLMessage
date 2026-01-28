@@ -19,7 +19,8 @@ export class ChatProvider extends Component {
       loading: false,
       error: null,
       typingUsers: [],
-      onlineUsers: [] // Lưu online users trong state để trigger re-render
+      onlineUsers: [], // Lưu online users trong state để trigger re-render
+      unreadCounts: {} // Track unread messages per conversation
     };
 
     // Flag để prevent duplicate setup
@@ -265,19 +266,37 @@ export class ChatProvider extends Component {
 
   selectConversation = async (conversation) => {
     try {
-      this.setState({ currentConversation: conversation, loading: true });
+      // Set conversation ngay lập tức, không hiển thị loading
+      this.setState({ 
+        currentConversation: conversation,
+        messages: [] // Clear messages cũ ngay lập tức
+      });
 
+      // Reset unread count ngay khi chọn
+      this.setState(prevState => {
+        const currentUnreadCounts = prevState.unreadCounts || {};
+        return {
+          unreadCounts: {
+            ...currentUnreadCounts,
+            [conversation._id]: 0
+          }
+        };
+      });
+
+      // Load messages trong background
       const response = await api.getMessages(conversation._id);
       
       if (response.success) {
-        this.setState({ messages: response.data, loading: false });
+        this.setState({ messages: response.data });
       }
 
       const { socketService } = this.context;
-      socketService.joinConversation(conversation._id);
+      if (socketService && socketService.joinConversation) {
+        socketService.joinConversation(conversation._id);
+      }
     } catch (error) {
       console.error('Select conversation error:', error);
-      this.setState({ loading: false, error: error.message });
+      this.setState({ error: error.message });
     }
   };
 
@@ -376,6 +395,17 @@ export class ChatProvider extends Component {
       }));
     } else {
       console.log('⚠️ Message NOT for current conversation or no conversation selected');
+      // Tăng unread count cho conversation khác
+      this.setState(prevState => {
+        // Đảm bảo unreadCounts tồn tại
+        const currentUnreadCounts = prevState.unreadCounts || {};
+        return {
+          unreadCounts: {
+            ...currentUnreadCounts,
+            [messageConvId]: (currentUnreadCounts[messageConvId] || 0) + 1
+          }
+        };
+      });
     }
 
     this.loadConversations();
@@ -438,10 +468,14 @@ export class ChatProvider extends Component {
   };
 
   render() {
+    // Đảm bảo unreadCounts luôn là object
+    const safeUnreadCounts = this.state.unreadCounts || {};
+    
     // Sử dụng onlineUsers từ state (đã được sync từ SocketContext)
     const contextValue = {
       ...this.state,
       onlineUsers: new Set(this.state.onlineUsers || []),
+      unreadCounts: safeUnreadCounts,
       loadConversations: this.loadConversations,
       loadFriends: this.loadFriends,
       loadFriendRequests: this.loadFriendRequests,
