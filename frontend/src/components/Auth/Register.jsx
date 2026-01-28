@@ -71,7 +71,7 @@ class Register extends Component {
     const { username, email, password, confirmPassword, fullName, error, loading, redirect } = this.state;
 
     if (redirect) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/login" replace />;
     }
 
     return (

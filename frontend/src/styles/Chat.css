@@ -432,14 +432,43 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 400;
+  transition: all 0.2s;
+}
+
+.conversation-last-message.unread {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.conversation-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .conversation-time {
   font-size: 11px;
   color: #64748b;
   flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 2px;
+}
+
+.unread-badge {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  min-width: 20px;
+  text-align: center;
+  box-shadow: 
+    0 2px 8px rgba(239, 68, 68, 0.5),
+    0 0 0 2px rgba(15, 23, 42, 0.95);
+  animation: pulseBadge 2s ease-in-out infinite;
 }
 
 .empty-state {
