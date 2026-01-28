@@ -142,6 +142,11 @@ class APIService {
     return response.data;
   }
 
+  async createGroup(data) {
+    const response = await this.client.post('/friends/groups', data);
+    return response.data;
+  }
+
   // Các phương thức quản lý tin nhắn
   async sendMessage(data) {
     const response = await this.client.post('/messages', data);
@@ -209,4 +214,5 @@ class APIService {
   }
 }
 
+// eslint-disable-next-line import/no-anonymous-default-export
 export default new APIService();

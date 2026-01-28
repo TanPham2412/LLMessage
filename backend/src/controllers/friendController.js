@@ -406,6 +406,84 @@ class FriendController {
       });
     }
   }
+
+  async createGroup(req, res) {
+    try {
+      const { name, members } = req.body;
+      const userId = req.user.id;
+
+      // Validation
+      if (!name || !name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Group name is required'
+        });
+      }
+
+      if (!members || !Array.isArray(members) || members.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'At least 2 members are required'
+        });
+      }
+
+      // Verify each member has at least one friend in the group
+      const allParticipants = [userId, ...members];
+      
+      // Get all users with their friends list
+      const users = await User.find({ _id: { $in: allParticipants } }).populate('friends');
+      const userFriendsMap = {};
+      
+      users.forEach(user => {
+        userFriendsMap[user._id.toString()] = user.friends.map(f => f._id.toString());
+      });
+
+      // Check if each participant has at least one friend in the group
+      const invalidMembers = [];
+      for (const participantId of allParticipants) {
+        const friendIds = userFriendsMap[participantId] || [];
+        const hasFriendInGroup = allParticipants.some(otherId => 
+          otherId !== participantId && friendIds.includes(otherId)
+        );
+        
+        if (!hasFriendInGroup) {
+          invalidMembers.push(participantId);
+        }
+      }
+
+      if (invalidMembers.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each member must have at least one friend in the group'
+        });
+      }
+
+      // Create group conversation (creator + members)
+      const participants = allParticipants;
+      
+      const conversation = await Conversation.create({
+        participants: participants,
+        type: 'group',
+        name: name.trim(),
+        createdBy: userId
+      });
+
+      await conversation.populate('participants', 'username fullName avatar isOnline lastSeen');
+
+      res.status(201).json({
+        success: true,
+        message: 'Group created successfully',
+        data: conversation
+      });
+    } catch (error) {
+      console.error('Create group error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create group',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = FriendController;

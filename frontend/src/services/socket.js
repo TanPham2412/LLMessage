@@ -66,14 +66,22 @@ class SocketService {
 
   // Chat specific methods
   sendMessage(data) {
+    console.log('📤 SocketService sending message:', {
+      messageId: data._id,
+      recipientId: data.recipientId,
+      conversationId: data.conversation,
+      content: data.content?.substring(0, 50)
+    });
     this.emit('send-message', data);
   }
 
   joinConversation(conversationId) {
+    console.log('🚪 SocketService joining conversation:', conversationId);
     this.emit('join-conversation', conversationId);
   }
 
   leaveConversation(conversationId) {
+    console.log('🚪 SocketService leaving conversation:', conversationId);
     this.emit('leave-conversation', conversationId);
   }
 
@@ -86,7 +94,15 @@ class SocketService {
   }
 
   onReceiveMessage(callback) {
-    this.on('receive-message', callback);
+    this.on('receive-message', (message) => {
+      console.log('📩 SocketService received message:', {
+        messageId: message._id,
+        sender: message.sender,
+        conversationId: message.conversation,
+        content: message.content?.substring(0, 50)
+      });
+      callback(message);
+    });
   }
 
   onUserOnline(callback) {

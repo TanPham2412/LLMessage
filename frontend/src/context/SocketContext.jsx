@@ -17,6 +17,9 @@ export class SocketProvider extends Component {
       onlineUsers: [],
       currentToken: null
     };
+
+    // Flag to prevent duplicate connection
+    this.socketConnected = false;
   }
 
   componentDidMount() {
@@ -51,6 +54,13 @@ export class SocketProvider extends Component {
   connectSocket = (token) => {
     if (!token) return;
 
+    // CRITICAL: Prevent duplicate connection
+    if (this.socketConnected) {
+      console.warn('⚠️ Socket already connected - skipping duplicate connection');
+      return;
+    }
+
+    console.log('🔌 SocketContext: Connecting socket...');
     this.socketService.connect(token);
 
     // Cài đặt listener online-users TRƯỚC KHI connection hoàn tất
@@ -66,6 +76,7 @@ export class SocketProvider extends Component {
 
     this.socketService.on('disconnect', () => {
       this.setState({ connected: false });
+      this.socketConnected = false; // Reset flag on disconnect
     });
 
     this.socketService.onUserOnline((data) => {
@@ -85,11 +96,16 @@ export class SocketProvider extends Component {
       }));
       // Không xử lý lastSeen ở đây - để ChatContext xử lý
     });
+
+    // Mark as connected
+    this.socketConnected = true;
+    console.log('✅ SocketContext: All listeners registered');
   };
 
   disconnectSocket = () => {
     this.socketService.disconnect();
     this.setState({ connected: false, onlineUsers: [] });
+    this.socketConnected = false;
   };
 
   emit = (event, data) => {

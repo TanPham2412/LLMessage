@@ -32,5 +32,6 @@ router.delete('/:friendId', (req, res) => req.friendController.removeFriend(req,
 // Conversations
 router.get('/conversations', (req, res) => req.friendController.getConversations(req, res));
 router.post('/conversations', (req, res) => req.friendController.createConversation(req, res));
+router.post('/groups', (req, res) => req.friendController.createGroup(req, res));
 
 module.exports = router;

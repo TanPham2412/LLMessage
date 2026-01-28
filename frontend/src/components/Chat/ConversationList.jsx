@@ -20,9 +20,26 @@ class ConversationList extends Component {
   };
 
   getConversationName = (conversation) => {
+    // Nếu là group, hiển thị tên nhóm
+    if (conversation.type === 'group') {
+      return conversation.name || 'Nhóm không tên';
+    }
+    
+    // Nếu là private, hiển thị tên người kia
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
     const otherParticipant = conversation.participants?.find(p => p._id !== currentUserId);
     return otherParticipant?.fullName || otherParticipant?.username || 'Unknown';
+  };
+
+  getConversationAvatar = (conversation) => {
+    // Nếu là group, trả về icon nhóm
+    if (conversation.type === 'group') {
+      return '👥';
+    }
+    
+    // Nếu là private, trả về chữ cái đầu của tên
+    const name = this.getConversationName(conversation);
+    return name[0]?.toUpperCase() || '?';
   };
 
   handleSelectConversation = (conversation) => {
@@ -53,6 +70,8 @@ class ConversationList extends Component {
           {conversations.map((conversation) => {
             const participant = this.getParticipant(conversation);
             const isOnline = participant ? onlineUsers.has(participant._id) : false;
+            const isGroup = conversation.type === 'group';
+            
             return (
               <div
                 key={conversation._id}
@@ -61,14 +80,16 @@ class ConversationList extends Component {
                 }`}
                 onClick={() => this.handleSelectConversation(conversation)}
               >
-                <div className={`conversation-avatar ${isOnline ? 'online' : ''}`}>
-                  {this.getConversationName(conversation)[0].toUpperCase()}
+                <div className={`conversation-avatar ${isOnline && !isGroup ? 'online' : ''} ${isGroup ? 'group-avatar' : ''}`}>
+                  {this.getConversationAvatar(conversation)}
                 </div>
                 <div className="conversation-info">
                   <div className="conversation-name">
                     {this.getConversationName(conversation)}
+                    {isGroup && <span className="group-badge">Nhóm</span>}
                   </div>
                   <div className="conversation-last-message">
+                    {isGroup && `${conversation.participants?.length || 0} thành viên • `}
                     Tin nhắn gần đây
                   </div>
                 </div>

@@ -392,6 +392,12 @@
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
+.conversation-avatar.group-avatar {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  font-size: 24px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
 .conversation-info {
   flex: 1;
   min-width: 0;
@@ -402,6 +408,22 @@
   color: #f1f5f9;
   margin-bottom: 4px;
   font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-badge {
+  display: inline-block;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .conversation-last-message {
@@ -520,6 +542,12 @@
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
 }
 
+.chat-header-avatar.group-avatar {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
 .chat-window-header h3 {
   color: #f1f5f9;
   font-size: 18px;
@@ -541,6 +569,10 @@
 
 .chat-header-status.offline {
   color: #94a3b8;
+}
+
+.chat-header-status.group {
+  color: #fbbf24;
 }
 
 .chat-header-status .status-dot {

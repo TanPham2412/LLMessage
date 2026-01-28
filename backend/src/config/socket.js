@@ -64,8 +64,18 @@ class SocketHandler {
 
     // Xử lý tin nhắn mới
     socket.on('send-message', (data) => {
+      console.log('📤 Backend received send-message:', {
+        from: userId,
+        to: data.recipientId,
+        messageId: data._id,
+        conversationId: data.conversation,
+        content: data.content?.substring(0, 50)
+      });
+      
       // Gửi đến người nhận
       socket.to(`user:${data.recipientId}`).emit('receive-message', data);
+      
+      console.log(`✅ Emitted receive-message to user:${data.recipientId}`);
     });
 
     // Xử lý tham gia cuộc trò chuyện
