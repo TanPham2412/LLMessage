@@ -348,7 +348,13 @@ class FriendController {
         isActive: true
       })
         .populate('participants', 'username fullName avatar isOnline lastSeen')
-        .populate('lastMessage')
+        .populate({
+          path: 'lastMessage',
+          populate: {
+            path: 'sender',
+            select: 'username fullName avatar'
+          }
+        })
         .sort({ lastMessageAt: -1 });
 
       res.json({

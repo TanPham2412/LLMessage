@@ -73,8 +73,9 @@ class ChatWindow extends Component {
   };
 
   renderOnlineStatus = () => {
-    const { currentConversation, currentUserId, onlineUsers } = this.context;
+    const { currentConversation, onlineUsers } = this.context;
     const { currentTime } = this.state; // Force re-render when currentTime changes
+    const currentUserId = localStorage.getItem('userId');
     
     if (!currentConversation?.participants) return null;
     
@@ -94,7 +95,18 @@ class ChatWindow extends Component {
     
     if (!participant) return null;
     
+    // CRITICAL: Dựa vào participant.isOnline từ state (đã được update từ socket events)
+    // thay vì chỉ dựa vào onlineUsers Set
     const isOnline = onlineUsers.has(participant._id);
+    
+    console.log('🔍 Checking online status:', {
+      participantId: participant._id,
+      participantName: participant.fullName || participant.username,
+      participantIsOnline: participant.isOnline,
+      isOnlineInSet: isOnline,
+      onlineUsersSize: onlineUsers.size,
+      lastSeen: participant.lastSeen
+    });
     
     if (isOnline) {
       return (
@@ -106,6 +118,7 @@ class ChatWindow extends Component {
     } else {
       // Use currentTime to ensure recalculation on every timer tick
       const statusText = participant.lastSeen ? getTimeAgo(participant.lastSeen) : 'Ngoại tuyến';
+      console.log('📊 Displaying offline status:', statusText);
       return (
         <div className="chat-header-status offline">
           {statusText}
@@ -176,8 +189,6 @@ class ChatWindow extends Component {
         </div>
 
         <div className="chat-messages">
-          {loading && messages.length === 0 && <div className="loading">Đang tải tin nhắn...</div>}
-
           {messages.map((msg) => (
             <div
               key={msg._id}

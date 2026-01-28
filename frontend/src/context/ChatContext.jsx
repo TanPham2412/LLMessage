@@ -19,7 +19,8 @@ export class ChatProvider extends Component {
       loading: false,
       error: null,
       typingUsers: [],
-      conversationUnreadCounts: {} // {conversationId: count}
+      onlineUsers: [], // Lưu online users trong state để trigger re-render
+      unreadCounts: {} // Track unread messages per conversation
     };
 
     // Flag để prevent duplicate setup
@@ -37,6 +38,27 @@ export class ChatProvider extends Component {
       
       // Setup listeners - CHỈ 1 LẦN
       this.setupSocketListeners();
+      
+      // Sync online users từ SocketContext
+      this.syncOnlineUsers();
+    }
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    // Sync online users từ SocketContext khi nó thay đổi
+    this.syncOnlineUsers();
+  }
+
+  syncOnlineUsers = () => {
+    if (this.context && this.context.onlineUsers) {
+      const newOnlineUsers = this.context.onlineUsers;
+      const currentOnlineUsers = this.state.onlineUsers;
+      
+      // So sánh và cập nhật nếu khác nhau
+      if (JSON.stringify(newOnlineUsers) !== JSON.stringify(currentOnlineUsers)) {
+        console.log('🔄 Syncing online users:', newOnlineUsers);
+        this.setState({ onlineUsers: newOnlineUsers });
+      }
     }
   }
 
@@ -91,37 +113,43 @@ export class ChatProvider extends Component {
     console.log('❌ ChatContext received user-offline:', {
       userId: data.userId,
       lastSeen: data.lastSeen,
-      lastSeenDate: new Date(data.lastSeen).toLocaleString()
+      lastSeenDate: data.lastSeen ? new Date(data.lastSeen).toLocaleString() : 'null'
     });
     
     this.setState(prevState => {
-      // Cập nhật lastSeen trong currentConversation nếu user này là người tham gia
+      // Cập nhật BOTH isOnline và lastSeen trong currentConversation
       let updatedConversation = prevState.currentConversation;
       if (updatedConversation?.participants) {
         const oldParticipant = updatedConversation.participants.find(p => p._id === data.userId);
         console.log('🔄 Updating participant in currentConversation:', {
           participantId: data.userId,
+          oldIsOnline: oldParticipant?.isOnline,
           oldLastSeen: oldParticipant?.lastSeen,
+          newIsOnline: false,
           newLastSeen: data.lastSeen
         });
         
         updatedConversation = {
           ...updatedConversation,
           participants: updatedConversation.participants.map(p =>
-            p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
+            p._id === data.userId 
+              ? { ...p, isOnline: false, lastSeen: data.lastSeen || new Date() } 
+              : p
           )
         };
       }
       
-      // Cập nhật lastSeen trong danh sách conversations
+      // Cập nhật BOTH isOnline và lastSeen trong danh sách conversations
       const updatedConversations = prevState.conversations.map(conv => ({
         ...conv,
         participants: conv.participants?.map(p =>
-          p._id === data.userId ? { ...p, lastSeen: data.lastSeen } : p
+          p._id === data.userId 
+            ? { ...p, isOnline: false, lastSeen: data.lastSeen || new Date() } 
+            : p
         )
       }));
       
-      console.log('✅ Updated currentConversation:', updatedConversation);
+      console.log('✅ Updated currentConversation with offline status:', updatedConversation);
       
       return { 
         currentConversation: updatedConversation,
@@ -133,24 +161,26 @@ export class ChatProvider extends Component {
   handleUserOnline = (data) => {
     console.log('✅ ChatContext received user-online:', data.userId);
     this.setState(prevState => {
-      // Cập nhật currentConversation
+      // Cập nhật BOTH isOnline và lastSeen trong currentConversation
       let updatedConversation = prevState.currentConversation;
       if (updatedConversation?.participants) {
         updatedConversation = {
           ...updatedConversation,
           participants: updatedConversation.participants.map(p =>
-            p._id === data.userId ? { ...p, lastSeen: null } : p
+            p._id === data.userId ? { ...p, isOnline: true, lastSeen: null } : p
           )
         };
       }
       
-      // Cập nhật danh sách conversations
+      // Cập nhật BOTH isOnline và lastSeen trong danh sách conversations
       const updatedConversations = prevState.conversations.map(conv => ({
         ...conv,
         participants: conv.participants?.map(p =>
-          p._id === data.userId ? { ...p, lastSeen: null } : p
+          p._id === data.userId ? { ...p, isOnline: true, lastSeen: null } : p
         )
       }));
+      
+      console.log('✅ Updated currentConversation with online status');
       
       return { 
         currentConversation: updatedConversation,
@@ -236,36 +266,37 @@ export class ChatProvider extends Component {
 
   selectConversation = async (conversation) => {
     try {
-      // Reset unread count cho conversation này
+      // Set conversation ngay lập tức, không hiển thị loading
+      this.setState({ 
+        currentConversation: conversation,
+        messages: [] // Clear messages cũ ngay lập tức
+      });
+
+      // Reset unread count ngay khi chọn
       this.setState(prevState => {
-        const newUnreadCounts = { ...prevState.conversationUnreadCounts };
-        delete newUnreadCounts[conversation._id];
+        const currentUnreadCounts = prevState.unreadCounts || {};
         return {
-          currentConversation: conversation,
-          // Không set loading: true ngay - giữ messages cũ cho smooth transition
-          conversationUnreadCounts: newUnreadCounts
+          unreadCounts: {
+            ...currentUnreadCounts,
+            [conversation._id]: 0
+          }
         };
       });
 
-      // Delay loading indicator - chỉ hiển thị nếu load > 200ms
-      const loadingTimeout = setTimeout(() => {
-        this.setState({ loading: true });
-      }, 200);
-
+      // Load messages trong background
       const response = await api.getMessages(conversation._id);
       
-      // Clear timeout nếu load nhanh
-      clearTimeout(loadingTimeout);
-      
       if (response.success) {
-        this.setState({ messages: response.data, loading: false });
+        this.setState({ messages: response.data });
       }
 
       const { socketService } = this.context;
-      socketService.joinConversation(conversation._id);
+      if (socketService && socketService.joinConversation) {
+        socketService.joinConversation(conversation._id);
+      }
     } catch (error) {
       console.error('Select conversation error:', error);
-      this.setState({ loading: false, error: error.message });
+      this.setState({ error: error.message });
     }
   };
 
@@ -298,9 +329,6 @@ export class ChatProvider extends Component {
         this.setState(prevState => ({
           messages: [...prevState.messages, newMessage]
         }));
-
-        // Update conversation trong list mà không reload
-        this.updateConversationInList(currentConversation._id, newMessage);
 
         // Gửi qua socket
         const { socketService } = this.context;
@@ -339,18 +367,18 @@ export class ChatProvider extends Component {
       ? message.sender._id?.toString() 
       : message.sender?.toString();
     
-    const messageConvId = typeof message.conversation === 'object' 
-      ? message.conversation._id?.toString() 
-      : message.conversation?.toString();
-
     if (messageSenderId === currentUserId?.toString()) {
       console.log('⏭️ Skipping own message - already added in sendMessage');
-      // Chỉ update conversation item trong list, KHÔNG reload toàn bộ
-      this.updateConversationInList(messageConvId, message);
+      this.loadConversations(); // Cập nhật danh sách conversations cho lastMessage
       return;
     }
 
     const { currentConversation } = this.state;
+
+    // Convert both to string for comparison
+    const messageConvId = typeof message.conversation === 'object' 
+      ? message.conversation._id?.toString() 
+      : message.conversation?.toString();
     const currentConvId = currentConversation?._id?.toString();
 
     console.log('🔍 Comparing conversation IDs:', {
@@ -365,44 +393,22 @@ export class ChatProvider extends Component {
       this.setState(prevState => ({
         messages: [...prevState.messages, message]
       }));
-      // Đang xem conversation này nên không tăng unread count
-      this.updateConversationInList(messageConvId, message);
     } else {
-      console.log('⚠️ Message NOT for current conversation - increasing unread count');
-      // Không xem conversation này nên tăng unread count
-      this.updateConversationInList(messageConvId, message, true);
-    }
-  };
-
-  updateConversationInList = (conversationId, lastMessage, incrementUnread = false) => {
-    this.setState(prevState => {
-      const conversations = [...prevState.conversations];
-      const index = conversations.findIndex(c => c._id === conversationId);
-      
-      if (index !== -1) {
-        // Update existing conversation với lastMessage content
-        conversations[index] = {
-          ...conversations[index],
-          lastMessage: lastMessage, // Lưu full message object
-          lastMessageAt: lastMessage.createdAt || new Date()
+      console.log('⚠️ Message NOT for current conversation or no conversation selected');
+      // Tăng unread count cho conversation khác
+      this.setState(prevState => {
+        // Đảm bảo unreadCounts tồn tại
+        const currentUnreadCounts = prevState.unreadCounts || {};
+        return {
+          unreadCounts: {
+            ...currentUnreadCounts,
+            [messageConvId]: (currentUnreadCounts[messageConvId] || 0) + 1
+          }
         };
-        
-        // Move to top
-        const [updated] = conversations.splice(index, 1);
-        conversations.unshift(updated);
-      }
-      
-      // Update unread count nếu cần
-      const newUnreadCounts = { ...prevState.conversationUnreadCounts };
-      if (incrementUnread) {
-        newUnreadCounts[conversationId] = (newUnreadCounts[conversationId] || 0) + 1;
-      }
-      
-      return {
-        conversations,
-        conversationUnreadCounts: newUnreadCounts
-      };
-    });
+      });
+    }
+
+    this.loadConversations();
   };
 
   createConversation = async (participantId) => {
@@ -462,12 +468,14 @@ export class ChatProvider extends Component {
   };
 
   render() {
-    const { onlineUsers } = this.context;
+    // Đảm bảo unreadCounts luôn là object
+    const safeUnreadCounts = this.state.unreadCounts || {};
     
+    // Sử dụng onlineUsers từ state (đã được sync từ SocketContext)
     const contextValue = {
       ...this.state,
-      onlineUsers: new Set(onlineUsers || []),
-      conversationUnreadCounts: this.state.conversationUnreadCounts,
+      onlineUsers: new Set(this.state.onlineUsers || []),
+      unreadCounts: safeUnreadCounts,
       loadConversations: this.loadConversations,
       loadFriends: this.loadFriends,
       loadFriendRequests: this.loadFriendRequests,
