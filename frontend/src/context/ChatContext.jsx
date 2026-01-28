@@ -18,7 +18,8 @@ export class ChatProvider extends Component {
       friendRequests: [],
       loading: false,
       error: null,
-      typingUsers: []
+      typingUsers: [],
+      conversationUnreadCounts: {} // {conversationId: count}
     };
 
     // Flag để prevent duplicate setup
@@ -235,9 +236,26 @@ export class ChatProvider extends Component {
 
   selectConversation = async (conversation) => {
     try {
-      this.setState({ currentConversation: conversation, loading: true });
+      // Reset unread count cho conversation này
+      this.setState(prevState => {
+        const newUnreadCounts = { ...prevState.conversationUnreadCounts };
+        delete newUnreadCounts[conversation._id];
+        return {
+          currentConversation: conversation,
+          // Không set loading: true ngay - giữ messages cũ cho smooth transition
+          conversationUnreadCounts: newUnreadCounts
+        };
+      });
+
+      // Delay loading indicator - chỉ hiển thị nếu load > 200ms
+      const loadingTimeout = setTimeout(() => {
+        this.setState({ loading: true });
+      }, 200);
 
       const response = await api.getMessages(conversation._id);
+      
+      // Clear timeout nếu load nhanh
+      clearTimeout(loadingTimeout);
       
       if (response.success) {
         this.setState({ messages: response.data, loading: false });
@@ -281,6 +299,9 @@ export class ChatProvider extends Component {
           messages: [...prevState.messages, newMessage]
         }));
 
+        // Update conversation trong list mà không reload
+        this.updateConversationInList(currentConversation._id, newMessage);
+
         // Gửi qua socket
         const { socketService } = this.context;
         const currentUserId = localStorage.getItem('userId');
@@ -318,18 +339,18 @@ export class ChatProvider extends Component {
       ? message.sender._id?.toString() 
       : message.sender?.toString();
     
+    const messageConvId = typeof message.conversation === 'object' 
+      ? message.conversation._id?.toString() 
+      : message.conversation?.toString();
+
     if (messageSenderId === currentUserId?.toString()) {
       console.log('⏭️ Skipping own message - already added in sendMessage');
-      this.loadConversations(); // Cập nhật danh sách conversations cho lastMessage
+      // Chỉ update conversation item trong list, KHÔNG reload toàn bộ
+      this.updateConversationInList(messageConvId, message);
       return;
     }
 
     const { currentConversation } = this.state;
-
-    // Convert both to string for comparison
-    const messageConvId = typeof message.conversation === 'object' 
-      ? message.conversation._id?.toString() 
-      : message.conversation?.toString();
     const currentConvId = currentConversation?._id?.toString();
 
     console.log('🔍 Comparing conversation IDs:', {
@@ -344,11 +365,44 @@ export class ChatProvider extends Component {
       this.setState(prevState => ({
         messages: [...prevState.messages, message]
       }));
+      // Đang xem conversation này nên không tăng unread count
+      this.updateConversationInList(messageConvId, message);
     } else {
-      console.log('⚠️ Message NOT for current conversation or no conversation selected');
+      console.log('⚠️ Message NOT for current conversation - increasing unread count');
+      // Không xem conversation này nên tăng unread count
+      this.updateConversationInList(messageConvId, message, true);
     }
+  };
 
-    this.loadConversations();
+  updateConversationInList = (conversationId, lastMessage, incrementUnread = false) => {
+    this.setState(prevState => {
+      const conversations = [...prevState.conversations];
+      const index = conversations.findIndex(c => c._id === conversationId);
+      
+      if (index !== -1) {
+        // Update existing conversation với lastMessage content
+        conversations[index] = {
+          ...conversations[index],
+          lastMessage: lastMessage, // Lưu full message object
+          lastMessageAt: lastMessage.createdAt || new Date()
+        };
+        
+        // Move to top
+        const [updated] = conversations.splice(index, 1);
+        conversations.unshift(updated);
+      }
+      
+      // Update unread count nếu cần
+      const newUnreadCounts = { ...prevState.conversationUnreadCounts };
+      if (incrementUnread) {
+        newUnreadCounts[conversationId] = (newUnreadCounts[conversationId] || 0) + 1;
+      }
+      
+      return {
+        conversations,
+        conversationUnreadCounts: newUnreadCounts
+      };
+    });
   };
 
   createConversation = async (participantId) => {
@@ -413,6 +467,7 @@ export class ChatProvider extends Component {
     const contextValue = {
       ...this.state,
       onlineUsers: new Set(onlineUsers || []),
+      conversationUnreadCounts: this.state.conversationUnreadCounts,
       loadConversations: this.loadConversations,
       loadFriends: this.loadFriends,
       loadFriendRequests: this.loadFriendRequests,
