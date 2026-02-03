@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
 import { ChatProvider } from './context/ChatContext.jsx';
@@ -31,13 +32,16 @@ class AdminRoute extends Component {
 
 class App extends Component {
   render() {
+    const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
     return (
-      <Router>
-        <AuthProvider>
-          <SocketProvider>
-            <ChatProvider>
-              <div className="app">
-                <Routes>
+      <GoogleOAuthProvider clientId={googleClientId}>
+        <Router>
+          <AuthProvider>
+            <SocketProvider>
+              <ChatProvider>
+                <div className="app">
+                  <Routes>
                   {/* Auth Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
@@ -86,6 +90,7 @@ class App extends Component {
           </SocketProvider>
         </AuthProvider>
       </Router>
+      </GoogleOAuthProvider>
     );
   }
 }

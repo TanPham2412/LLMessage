@@ -1,10 +1,12 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 
 class AuthController {
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET;
     this.jwtExpire = process.env.JWT_EXPIRE || '7d';
+    this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   }
 
   generateToken(userId) {
@@ -224,6 +226,82 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Failed to change password',
+        error: error.message
+      });
+    }
+  }
+
+  async googleAuth(req, res) {
+    try {
+      const { credential } = req.body;
+
+      if (!credential) {
+        return res.status(400).json({
+          success: false,
+          message: 'Google credential is required'
+        });
+      }
+
+      // Verify Google token
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+
+      const payload = ticket.getPayload();
+      const { sub: googleId, email, name, picture } = payload;
+
+      // Tìm user với googleId hoặc email
+      let user = await User.findOne({
+        $or: [{ googleId }, { email }]
+      });
+
+      if (user) {
+        // Nếu user đã tồn tại nhưng chưa có googleId, cập nhật
+        if (!user.googleId) {
+          user.googleId = googleId;
+          user.authProvider = 'google';
+          if (picture && !user.avatar) {
+            user.avatar = picture;
+          }
+          await user.save();
+        }
+
+        // Cập nhật trạng thái online
+        user.isOnline = true;
+        user.lastSeen = Date.now();
+        await user.save();
+      } else {
+        // Tạo user mới từ Google
+        const username = email.split('@')[0] + '_' + Math.random().toString(36).substring(2, 7);
+        
+        user = await User.create({
+          googleId,
+          email,
+          username,
+          fullName: name || email.split('@')[0],
+          avatar: picture || '',
+          authProvider: 'google',
+          isOnline: true
+        });
+      }
+
+      // Generate token
+      const token = this.generateToken(user._id);
+
+      res.json({
+        success: true,
+        message: 'Google authentication successful',
+        data: {
+          user: user.getPublicProfile(),
+          token
+        }
+      });
+    } catch (error) {
+      console.error('Google auth error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Google authentication failed',
         error: error.message
       });
     }

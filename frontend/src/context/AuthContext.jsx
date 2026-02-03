@@ -100,6 +100,34 @@ export class AuthProvider extends Component {
     }
   };
 
+  loginWithGoogle = async (credential) => {
+    try {
+      this.setState({ loading: true, error: null });
+      const response = await api.googleLogin(credential);
+
+      if (response.success) {
+        const { user, token } = response.data;
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('userId', user._id);
+        
+        this.setState({
+          user,
+          token,
+          loading: false,
+          error: null
+        });
+
+        return { success: true };
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Google login failed';
+      this.setState({ loading: false, error: errorMessage });
+      return { success: false, message: errorMessage };
+    }
+  };
+
   logout = async () => {
     try {
       if (this.state.token) {
@@ -141,6 +169,7 @@ export class AuthProvider extends Component {
       isAuthenticated: !!this.state.token,
       login: this.login,
       register: this.register,
+      loginWithGoogle: this.loginWithGoogle,
       logout: this.logout,
       updateUser: this.updateUser,
       clearError: this.clearError,

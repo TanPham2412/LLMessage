@@ -49,6 +49,11 @@ class APIService {
     return response.data;
   }
 
+  async googleLogin(credential) {
+    const response = await this.client.post('/auth/google', { credential });
+    return response.data;
+  }
+
   async logout() {
     const response = await this.client.post('/auth/logout');
     return response.data;

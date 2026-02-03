@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 // Public routes
 router.post('/register', authController.register.bind(authController));
 router.post('/login', authController.login.bind(authController));
+router.post('/google', authController.googleAuth.bind(authController));
 
 // Protected routes
 router.post('/logout', authenticate, authController.logout.bind(authController));
