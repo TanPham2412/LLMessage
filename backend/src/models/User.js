@@ -86,7 +86,34 @@ const userSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  // 2FA Fields
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorSecret: {
+    type: String,
+    select: false
+  },
+  twoFactorBackupCodes: [{
+    code: {
+      type: String,
+      select: false
+    },
+    used: {
+      type: Boolean,
+      default: false
+    },
+    usedAt: {
+      type: Date
+    }
+  }],
+  twoFactorMethod: {
+    type: String,
+    enum: ['totp', 'sms', 'email'],
+    default: 'totp'
+  }
 }, {
   timestamps: true
 });
@@ -127,7 +154,8 @@ userSchema.methods.getPublicProfile = function() {
     isOnline: this.isOnline,
     lastSeen: this.lastSeen,
     role: this.role,
-    createdAt: this.createdAt
+    createdAt: this.createdAt,
+    twoFactorEnabled: this.twoFactorEnabled
   };
 };
 
