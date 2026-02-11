@@ -51,10 +51,22 @@ export class AuthProvider extends Component {
       const response = await api.login(credentials);
 
       if (response.success) {
+        // Check if 2FA is required
+        if (response.requiresTwoFactor) {
+          this.setState({ loading: false });
+          return {
+            success: true,
+            requiresTwoFactor: true,
+            data: response.data
+          };
+        }
+
+        // Normal login without 2FA
         const { user, token } = response.data;
         
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('userId', user._id);
         
         this.setState({
           user,
@@ -106,6 +118,17 @@ export class AuthProvider extends Component {
       const response = await api.googleLogin(credential);
 
       if (response.success) {
+        // Check if 2FA is required
+        if (response.requiresTwoFactor) {
+          this.setState({ loading: false });
+          return {
+            success: true,
+            requiresTwoFactor: true,
+            data: response.data
+          };
+        }
+
+        // Normal login without 2FA
         const { user, token } = response.data;
         
         localStorage.setItem('token', token);
@@ -156,6 +179,13 @@ export class AuthProvider extends Component {
     }
   };
 
+  setUserAndToken = (user, token) => {
+    this.setState({ user, token, loading: false, error: null });
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', token);
+    localStorage.setItem('userId', user._id);
+  };
+
   clearError = () => {
     this.setState({ error: null });
   };
@@ -172,6 +202,7 @@ export class AuthProvider extends Component {
       loginWithGoogle: this.loginWithGoogle,
       logout: this.logout,
       updateUser: this.updateUser,
+      setUserAndToken: this.setUserAndToken,
       clearError: this.clearError,
       loadUser: this.loadUser
     };

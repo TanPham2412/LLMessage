@@ -74,6 +74,37 @@ class APIService {
     return response.data;
   }
 
+  // 2FA methods
+  async validate2FALogin(data) {
+    const response = await this.client.post('/auth/2fa/validate-login', data);
+    return response.data;
+  }
+
+  async setup2FA() {
+    const response = await this.client.post('/auth/2fa/setup');
+    return response.data;
+  }
+
+  async verify2FA(code) {
+    const response = await this.client.post('/auth/2fa/verify', { token: code });
+    return response.data;
+  }
+
+  async disable2FA(password) {
+    const response = await this.client.post('/auth/2fa/disable', { password });
+    return response.data;
+  }
+
+  async regenerateBackupCodes(password) {
+    const response = await this.client.post('/auth/2fa/regenerate-backup-codes', { password });
+    return response.data;
+  }
+
+  async get2FAStatus() {
+    const response = await this.client.get('/auth/2fa/status');
+    return response.data;
+  }
+
   // Các phương thức quản lý user
   async getAllUsers(params = {}) {
     const response = await this.client.get('/users', { params });

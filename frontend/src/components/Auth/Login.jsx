@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { AuthContext } from '../../context/AuthContext.jsx';
+import TwoFactorAuth from './TwoFactorAuth.jsx';
 import '../../styles/Auth.css';
 
 class Login extends Component {
@@ -15,7 +16,9 @@ class Login extends Component {
       password: '',
       error: '',
       loading: false,
-      redirect: false
+      redirect: false,
+      requiresTwoFactor: false,
+      tempToken: null
     };
 
     this.googleLoginRef = React.createRef();
@@ -43,7 +46,17 @@ class Login extends Component {
     const result = await this.context.login({ loginId, password });
 
     if (result.success) {
-      this.setState({ redirect: true });
+      // Check if 2FA is required
+      if (result.requiresTwoFactor) {
+        this.setState({
+          requiresTwoFactor: true,
+          tempToken: result.data.tempToken,
+          loading: false,
+          error: ''
+        });
+      } else {
+        this.setState({ redirect: true });
+      }
     } else {
       this.setState({
         error: result.message || 'Đăng nhập thất bại',
@@ -54,10 +67,22 @@ class Login extends Component {
 
   handleGoogleSuccess = async (credentialResponse) => {
     this.setState({ loading: true });
+    console.log('Frontend GOOGLE_CLIENT_ID:', process.env.REACT_APP_GOOGLE_CLIENT_ID);
+    console.log('Credential:', credentialResponse.credential);
     const result = await this.context.loginWithGoogle(credentialResponse.credential);
     
     if (result.success) {
-      this.setState({ redirect: true });
+      // Check if 2FA is required
+      if (result.requiresTwoFactor) {
+        this.setState({
+          requiresTwoFactor: true,
+          tempToken: result.data.tempToken,
+          loading: false,
+          error: ''
+        });
+      } else {
+        this.setState({ redirect: true });
+      }
     } else {
       this.setState({
         error: result.message || 'Đăng nhập Google thất bại',
@@ -90,11 +115,35 @@ class Login extends Component {
     }
   };
 
+  handle2FASuccess = () => {
+    this.setState({ redirect: true });
+  };
+
+  handle2FACancel = () => {
+    this.setState({
+      requiresTwoFactor: false,
+      tempToken: null,
+      password: '',
+      error: ''
+    });
+  };
+
   render() {
-    const { loginId, password, error, loading, redirect } = this.state;
+    const { loginId, password, error, loading, redirect, requiresTwoFactor, tempToken } = this.state;
 
     if (redirect) {
       return <Navigate to="/" replace />;
+    }
+
+    // Show 2FA component if required
+    if (requiresTwoFactor && tempToken) {
+      return (
+        <TwoFactorAuth
+          tempToken={tempToken}
+          onSuccess={this.handle2FASuccess}
+          onCancel={this.handle2FACancel}
+        />
+      );
     }
 
     return (

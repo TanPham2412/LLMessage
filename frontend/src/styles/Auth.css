@@ -511,3 +511,164 @@
     font-size: 15px;
   }
 }
+
+/* 2FA Specific Styles */
+.auth-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.icon-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(59, 130, 246, 0.2));
+  border: 3px solid rgba(147, 51, 234, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 0 30px rgba(147, 51, 234, 0.3),
+    inset 0 0 20px rgba(147, 51, 234, 0.1);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.icon-lock {
+  font-size: 48px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(147, 51, 234, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 50px rgba(147, 51, 234, 0.5);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.code-input-large {
+  width: 100%;
+  padding: 20px !important;
+  font-size: 32px !important;
+  text-align: center !important;
+  letter-spacing: 12px !important;
+  font-family: 'Courier New', monospace !important;
+  font-weight: 700 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 2px solid rgba(147, 51, 234, 0.4) !important;
+  border-radius: 12px !important;
+  color: #e0e7ff !important;
+  transition: all 0.3s ease !important;
+}
+
+.code-input-large:focus {
+  border-color: rgba(147, 51, 234, 0.8) !important;
+  box-shadow: 
+    0 0 0 4px rgba(147, 51, 234, 0.1),
+    0 0 30px rgba(147, 51, 234, 0.3) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.6);
+  text-align: center;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 2px solid rgba(147, 51, 234, 0.3);
+  border-radius: 12px;
+  color: #e0e7ff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(147, 51, 234, 0.2);
+  border-color: rgba(147, 51, 234, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(147, 51, 234, 0.3);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: rgba(147, 51, 234, 0.8);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 8px 0;
+}
+
+.btn-link:hover:not(:disabled) {
+  color: rgba(147, 51, 234, 1);
+  text-decoration: underline;
+}
+
+.btn-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-options {
+  margin: 20px 0;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-primary span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Auth footer for 2FA */
+.auth-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.auth-footer .btn-link {
+  width: 100%;
+  display: inline-block;
+}
