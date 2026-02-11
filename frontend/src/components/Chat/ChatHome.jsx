@@ -7,6 +7,7 @@ import ChatWindow from './ChatWindow.jsx';
 import AddFriendModal from './AddFriendModal.jsx';
 import CreateGroupModal from './CreateGroupModal.jsx';
 import FriendNotifications from './FriendNotifications.jsx';
+import UserSettings from './UserSettings.jsx';
 import api from '../../services/api';
 import '../../styles/Chat.css';
 
@@ -23,7 +24,8 @@ class ChatHome extends Component {
       showCreateGroupModal: false,
       showNotifications: false,
       notificationTab: 'requests',
-      notificationCount: 0
+      notificationCount: 0,
+      showSettingsModal: false
     };
     
     this.menuRef = React.createRef();
@@ -131,6 +133,14 @@ class ChatHome extends Component {
     this.setState({ showCreateGroupModal: false });
   };
 
+  handleOpenSettings = () => {
+    this.setState({ showSettingsModal: true, showUserMenu: false });
+  };
+
+  handleCloseSettings = () => {
+    this.setState({ showSettingsModal: false });
+  };
+
   toggleNotifications = () => {
     this.setState(prevState => ({
       showNotifications: !prevState.showNotifications,
@@ -226,7 +236,7 @@ class ChatHome extends Component {
                       <span className="menu-text">Tạo Nhóm Chat</span>
                     </button>
                     
-                    <button className="user-menu-item" onClick={() => alert('Tính năng đang phát triển')}>
+                    <button className="user-menu-item" onClick={this.handleOpenSettings}>
                       <span className="menu-icon">⚙️</span>
                       <span className="menu-text">Cài Đặt & Quyền Riêng Tư</span>
                     </button>
@@ -275,6 +285,10 @@ class ChatHome extends Component {
 
         {this.state.showCreateGroupModal && (
           <CreateGroupModal onClose={this.handleCloseCreateGroup} />
+        )}
+
+        {this.state.showSettingsModal && (
+          <UserSettings onClose={this.handleCloseSettings} />
         )}
       </div>
     );
