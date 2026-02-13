@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
+const uploadMiddleware = require('../middleware/upload');
 
 // Public routes
 router.post('/register', authController.register.bind(authController));
@@ -13,6 +14,7 @@ router.post('/2fa/validate-login', authController.validate2FALogin.bind(authCont
 router.post('/logout', authenticate, authController.logout.bind(authController));
 router.get('/me', authenticate, authController.getMe.bind(authController));
 router.put('/profile', authenticate, authController.updateProfile.bind(authController));
+router.post('/upload-avatar', authenticate, uploadMiddleware.single('avatar'), authController.uploadAvatar.bind(authController));
 router.put('/password', authenticate, authController.changePassword.bind(authController));
 
 // 2FA routes (Protected)

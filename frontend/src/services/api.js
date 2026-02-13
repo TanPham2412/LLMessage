@@ -69,6 +69,15 @@ class APIService {
     return response.data;
   }
 
+  async uploadAvatar(formData) {
+    const response = await this.client.post('/auth/upload-avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  }
+
   async changePassword(data) {
     const response = await this.client.put('/auth/password', data);
     return response.data;
