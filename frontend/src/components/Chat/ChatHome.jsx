@@ -221,10 +221,10 @@ class ChatHome extends Component {
                       </a>
                     )}
                     
-                    <button className="user-menu-item" onClick={() => alert('Tính năng đang phát triển')}>
+                    <a href="/profile" className="user-menu-item">
                       <span className="menu-icon">👤</span>
                       <span className="menu-text">Trang Cá Nhân</span>
-                    </button>
+                    </a>
                     
                     <button className="user-menu-item" onClick={this.handleOpenAddFriend}>
                       <span className="menu-icon">👥</span>

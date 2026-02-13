@@ -297,12 +297,17 @@ class AuthController {
   async updateProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { fullName, bio, avatar } = req.body;
+      const { fullName, bio, avatar, dateOfBirth, gender, phone, location, website } = req.body;
 
       const updateData = {};
       if (fullName !== undefined) updateData.fullName = fullName;
       if (bio !== undefined) updateData.bio = bio;
       if (avatar !== undefined) updateData.avatar = avatar;
+      if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+      if (gender !== undefined) updateData.gender = gender;
+      if (phone !== undefined) updateData.phone = phone;
+      if (location !== undefined) updateData.location = location;
+      if (website !== undefined) updateData.website = website;
 
       const user = await User.findByIdAndUpdate(
         userId,
@@ -320,6 +325,45 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Failed to update profile',
+        error: error.message
+      });
+    }
+  }
+
+  async uploadAvatar(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded'
+        });
+      }
+
+      // Get the file path relative to the server
+      const avatarPath = `/uploads/${req.file.filename}`;
+
+      // Update user avatar
+      const user = await User.findByIdAndUpdate(
+        userId,
+        { avatar: avatarPath },
+        { new: true }
+      );
+
+      res.json({
+        success: true,
+        message: 'Avatar uploaded successfully',
+        data: {
+          avatar: avatarPath,
+          user: user.getPublicProfile()
+        }
+      });
+    } catch (error) {
+      console.error('Upload avatar error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upload avatar',
         error: error.message
       });
     }

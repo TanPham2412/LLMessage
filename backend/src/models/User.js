@@ -50,6 +50,27 @@ const userSchema = new mongoose.Schema({
     maxlength: [200, 'Bio cannot exceed 200 characters'],
     default: ''
   },
+  dateOfBirth: {
+    type: Date,
+    default: null
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other', ''],
+    default: ''
+  },
+  phone: {
+    type: String,
+    default: ''
+  },
+  location: {
+    type: String,
+    default: ''
+  },
+  website: {
+    type: String,
+    default: ''
+  },
   isOnline: {
     type: Boolean,
     default: false
@@ -151,6 +172,11 @@ userSchema.methods.getPublicProfile = function() {
     fullName: this.fullName,
     avatar: this.avatar,
     bio: this.bio,
+    dateOfBirth: this.dateOfBirth,
+    gender: this.gender,
+    phone: this.phone,
+    location: this.location,
+    website: this.website,
     isOnline: this.isOnline,
     lastSeen: this.lastSeen,
     role: this.role,
