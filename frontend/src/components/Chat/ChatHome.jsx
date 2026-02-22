@@ -191,7 +191,22 @@ class ChatHome extends Component {
             <div className="user-menu-container" ref={this.menuRef}>
               <button className="user-info-btn" onClick={this.toggleUserMenu}>
                 <div className="user-avatar">
-                  {(user?.fullName || user?.username || 'U')[0].toUpperCase()}
+                  {user?.avatar ? (
+                    <img 
+                      src={user.avatar.startsWith('http') 
+                        ? user.avatar 
+                        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${user.avatar}`
+                      } 
+                      alt={user.fullName || user.username}
+                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <img 
+                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || user?.username || 'U')}&size=80&background=8b5cf6&color=fff`}
+                      alt={user?.fullName || user?.username}
+                      style={{ width: '100%', height: '100%', borderRadius: '50%' }}
+                    />
+                  )}
                 </div>
                 <span className="user-name">
                   {user?.fullName || user?.username}
@@ -203,7 +218,22 @@ class ChatHome extends Component {
                 <div className="user-dropdown-menu">
                   <div className="user-menu-header">
                     <div className="user-menu-avatar">
-                      {(user?.fullName || user?.username || 'U')[0].toUpperCase()}
+                      {user?.avatar ? (
+                        <img 
+                          src={user.avatar.startsWith('http') 
+                            ? user.avatar 
+                            : `${process.env.REACT_APP_API_URL.replace('/api', '')}${user.avatar}`
+                          } 
+                          alt={user.fullName || user.username}
+                          style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || user?.username || 'U')}&size=80&background=8b5cf6&color=fff`}
+                          alt={user?.fullName || user?.username}
+                          style={{ width: '100%', height: '100%', borderRadius: '50%' }}
+                        />
+                      )}
                     </div>
                     <div className="user-menu-info">
                       <div className="user-menu-name">{user?.fullName || user?.username}</div>
