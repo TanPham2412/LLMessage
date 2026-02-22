@@ -14,6 +14,7 @@ import AdminUsers from './components/Admin/AdminUsers.jsx';
 import AdminMessages from './components/Admin/AdminMessages.jsx';
 import UserProfile from './components/Profile/UserProfile.jsx';
 import EditProfile from './components/Profile/EditProfile.jsx';
+import PublicProfile from './components/Profile/PublicProfile.jsx';
 
 // HOC for protected routes
 class ProtectedRoute extends Component {
@@ -72,6 +73,14 @@ class App extends Component {
                     element={
                       <ProtectedRoute>
                         <EditProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/:userId"
+                    element={
+                      <ProtectedRoute>
+                        <PublicProfile />
                       </ProtectedRoute>
                     }
                   />

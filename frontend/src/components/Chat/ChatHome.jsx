@@ -4,9 +4,9 @@ import { ChatContext } from '../../context/ChatContext.jsx';
 import { SocketContext } from '../../context/SocketContext.jsx';
 import ConversationList from './ConversationList.jsx';
 import ChatWindow from './ChatWindow.jsx';
-import AddFriendModal from './AddFriendModal.jsx';
 import CreateGroupModal from './CreateGroupModal.jsx';
 import FriendNotifications from './FriendNotifications.jsx';
+import FriendsList from './FriendsList.jsx';
 import UserSettings from './UserSettings.jsx';
 import api from '../../services/api';
 import '../../styles/Chat.css';
@@ -20,8 +20,8 @@ class ChatHome extends Component {
     this.state = {
       showSidebar: true,
       showUserMenu: false,
-      showAddFriendModal: false,
       showCreateGroupModal: false,
+      showFriendsList: false,
       showNotifications: false,
       notificationTab: 'requests',
       notificationCount: 0,
@@ -114,23 +114,20 @@ class ChatHome extends Component {
     }));
   };
 
-  handleOpenAddFriend = () => {
-    this.setState({ 
-      showAddFriendModal: true,
-      showUserMenu: false 
-    });
-  };
-
-  handleCloseAddFriend = () => {
-    this.setState({ showAddFriendModal: false });
-  };
-
   handleOpenCreateGroup = () => {
     this.setState({ showCreateGroupModal: true, showUserMenu: false });
   };
 
   handleCloseCreateGroup = () => {
     this.setState({ showCreateGroupModal: false });
+  };
+
+  handleOpenFriendsList = () => {
+    this.setState({ showFriendsList: true, showUserMenu: false });
+  };
+
+  handleCloseFriendsList = () => {
+    this.setState({ showFriendsList: false });
   };
 
   handleOpenSettings = () => {
@@ -256,9 +253,9 @@ class ChatHome extends Component {
                       <span className="menu-text">Trang Cá Nhân</span>
                     </a>
                     
-                    <button className="user-menu-item" onClick={this.handleOpenAddFriend}>
+                    <button className="user-menu-item" onClick={this.handleOpenFriendsList}>
                       <span className="menu-icon">👥</span>
-                      <span className="menu-text">Thêm Bạn Bè</span>
+                      <span className="menu-text">Danh Sách Bạn Bè</span>
                     </button>
                     
                     <button className="user-menu-item" onClick={this.handleOpenCreateGroup}>
@@ -309,12 +306,12 @@ class ChatHome extends Component {
           )}
         </ChatContext.Consumer>
 
-        {this.state.showAddFriendModal && (
-          <AddFriendModal onClose={this.handleCloseAddFriend} />
-        )}
-
         {this.state.showCreateGroupModal && (
           <CreateGroupModal onClose={this.handleCloseCreateGroup} />
+        )}
+
+        {this.state.showFriendsList && (
+          <FriendsList onClose={this.handleCloseFriendsList} />
         )}
 
         {this.state.showSettingsModal && (

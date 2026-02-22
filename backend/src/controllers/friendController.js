@@ -398,6 +398,12 @@ class FriendController {
 
       await conversation.populate('participants', 'username fullName avatar isOnline');
 
+      // Auto-join người tạo vào conversation room
+      if (this.socketHandler) {
+        this.socketHandler.joinUserToConversation(userId, conversation._id.toString());
+        // Người nhận sẽ tự động join khi connect (trong joinUserConversations)
+      }
+
       res.status(201).json({
         success: true,
         message: 'Conversation created successfully',

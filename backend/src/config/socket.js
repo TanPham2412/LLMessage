@@ -28,6 +28,7 @@ class SocketHandler {
 
   handleConnection(socket) {
     const userId = socket.userId;
+    const self = this; // Lưu reference đến SocketHandler
     console.log(`✅ User connected: ${userId}`);
 
     // Lưu user online
@@ -35,6 +36,9 @@ class SocketHandler {
 
     // Cập nhật trạng thái online trong database
     this.updateUserOnlineStatus(userId, true);
+
+    // Auto-join vào tất cả conversations của user
+    this.joinUserConversations(userId, socket);
 
     // Gửi danh sách users đang online cho user mới kết nối ngay lập tức
     const onlineUserIds = this.getOnlineUsers();
@@ -63,7 +67,7 @@ class SocketHandler {
     });
 
     // Xử lý tin nhắn mới
-    socket.on('send-message', (data) => {
+    socket.on('send-message', async (data) => {
       console.log('📤 Backend received send-message:', {
         from: userId,
         to: data.recipientId,
@@ -72,10 +76,44 @@ class SocketHandler {
         content: data.content?.substring(0, 50)
       });
       
-      // Gửi đến người nhận
-      socket.to(`user:${data.recipientId}`).emit('receive-message', data);
-      
-      console.log(`✅ Emitted receive-message to user:${data.recipientId}`);
+      // CHỈ gửi đến conversation room để tránh duplicate
+      if (data.conversation) {
+        // Check xem đây có phải tin nhắn đầu tiên không bằng cách đếm messages
+        const Message = require('../models/Message');
+        const Conversation = require('../models/Conversation');
+        
+        const messageCount = await Message.countDocuments({
+          conversation: data.conversation,
+          isDeleted: false
+        });
+        
+        console.log(`📊 Message count in conversation ${data.conversation}: ${messageCount}`);
+        
+        // Nếu đây là tin nhắn đầu tiên (count = 1, vì message vừa được tạo)
+        if (messageCount === 1 && data.recipientId) {
+          // Load full conversation data để gửi đầy đủ thông tin
+          const conversation = await Conversation.findById(data.conversation)
+            .populate('participants', 'username fullName avatar isOnline lastSeen')
+            .populate('lastMessage');
+          
+          if (conversation) {
+            // CRITICAL: Join recipient vào conversation room TRƯỚC KHI emit
+            self.joinUserToConversation(data.recipientId, data.conversation);
+            
+            console.log(`🆕 Sending new-conversation to user:${data.recipientId}`, {
+              conversationId: conversation._id,
+              participants: conversation.participants.map(p => p.username)
+            });
+            
+            // Emit new-conversation trước
+            self.sendNotificationToUser(data.recipientId, 'new-conversation', conversation);
+          }
+        }
+        
+        // Emit receive-message SAU KHI đã join recipient (nếu cần)
+        socket.to(`conversation:${data.conversation}`).emit('receive-message', data);
+        console.log(`✅ Emitted receive-message to conversation:${data.conversation}`);
+      }
     });
 
     // Xử lý tham gia cuộc trò chuyện
@@ -120,6 +158,25 @@ class SocketHandler {
     }
   }
 
+  // Auto-join user vào tất cả conversations của họ
+  async joinUserConversations(userId, socket) {
+    try {
+      const Conversation = require('../models/Conversation');
+      const conversations = await Conversation.find({
+        participants: userId
+      }).select('_id');
+
+      conversations.forEach(conv => {
+        socket.join(`conversation:${conv._id}`);
+        console.log(`✅ User ${userId} auto-joined conversation:${conv._id}`);
+      });
+
+      console.log(`📊 User ${userId} joined ${conversations.length} conversations`);
+    } catch (error) {
+      console.error('Join user conversations error:', error);
+    }
+  }
+
   // Phương thức hỗ trợ gửi thông báo
   sendNotificationToUser(userId, event, data) {
     console.log(`🔔 Emitting ${event} to room: user:${userId}`);
@@ -131,6 +188,18 @@ class SocketHandler {
     const socketId = this.onlineUsers.get(userId);
     if (socketId) {
       this.io.to(socketId).emit(event, data);
+    }
+  }
+
+  // Join user vào conversation room
+  joinUserToConversation(userId, conversationId) {
+    const socketId = this.onlineUsers.get(userId);
+    if (socketId) {
+      const socket = this.io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.join(`conversation:${conversationId}`);
+        console.log(`✅ User ${userId} joined conversation:${conversationId}`);
+      }
     }
   }
 

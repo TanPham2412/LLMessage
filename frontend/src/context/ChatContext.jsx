@@ -39,10 +39,27 @@ export class ChatProvider extends Component {
       // Setup listeners - CHỈ 1 LẦN
       this.setupSocketListeners();
       
+      // Setup reconnect listener để re-setup listeners khi socket reconnect
+      this.setupReconnectListener();
+      
       // Sync online users từ SocketContext
       this.syncOnlineUsers();
     }
   }
+
+  setupReconnectListener = () => {
+    const { socketService } = this.context;
+    if (socketService && socketService.socket) {
+      // Listen for reconnect event
+      socketService.socket.on('connect', () => {
+        console.log('🔄 Socket reconnected - re-setting up ChatContext listeners');
+        // Reset flag để cho phép setup lại
+        this.listenersSetup = false;
+        // Re-setup listeners
+        this.setupSocketListeners();
+      });
+    }
+  };
 
   componentDidUpdate(prevProps, prevState) {
     // Sync online users từ SocketContext khi nó thay đổi
@@ -64,6 +81,12 @@ export class ChatProvider extends Component {
 
   componentWillUnmount() {
     this.removeSocketListeners();
+    
+    // Remove reconnect listener
+    const { socketService } = this.context;
+    if (socketService && socketService.socket) {
+      socketService.socket.off('connect');
+    }
   }
 
   setupSocketListeners = () => {
@@ -98,6 +121,7 @@ export class ChatProvider extends Component {
     socketService.socket.on('receive-message', this.handleReceiveMessage);
     socketService.socket.on('user-typing', this.handleUserTyping);
     socketService.socket.on('user-stop-typing', this.handleUserStopTyping);
+    socketService.socket.on('new-conversation', this.handleNewConversation);
 
     // Mark as setup
     this.listenersSetup = true;
@@ -207,6 +231,27 @@ export class ChatProvider extends Component {
     }));
   };
 
+  handleNewConversation = (conversation) => {
+    console.log('🆕 Received new-conversation:', conversation);
+    
+    // Thêm conversation vào danh sách nếu chưa có
+    this.setState(prevState => {
+      const exists = prevState.conversations.some(conv => conv._id === conversation._id);
+      if (!exists) {
+        return {
+          conversations: [conversation, ...prevState.conversations]
+        };
+      }
+      return prevState;
+    });
+
+    // Auto-join vào conversation room
+    const { socketService } = this.context;
+    if (socketService && socketService.joinConversation) {
+      socketService.joinConversation(conversation._id);
+    }
+  };
+
   removeSocketListeners = () => {
     const { socketService } = this.context;
     if (!socketService || !socketService.socket) {
@@ -221,6 +266,7 @@ export class ChatProvider extends Component {
     socketService.socket.off('receive-message', this.handleReceiveMessage);
     socketService.socket.off('user-typing', this.handleUserTyping);
     socketService.socket.off('user-stop-typing', this.handleUserStopTyping);
+    socketService.socket.off('new-conversation', this.handleNewConversation);
 
     // Reset flag
     this.listenersSetup = false;
@@ -233,6 +279,32 @@ export class ChatProvider extends Component {
       
       if (response.success) {
         this.setState({ conversations: response.data, loading: false });
+        
+        // Auto-open conversation nếu có openConversationId trong localStorage
+        const openConversationId = localStorage.getItem('openConversationId');
+        if (openConversationId) {
+          let conversation = response.data.find(conv => conv._id === openConversationId);
+          
+          // Nếu không tìm thấy (conversation mới tạo), reload lại một lần nữa
+          if (!conversation) {
+            console.log('🔄 Conversation not found, reloading...');
+            await new Promise(resolve => setTimeout(resolve, 500)); // Đợi 500ms
+            const retryResponse = await api.getConversations();
+            if (retryResponse.success) {
+              this.setState({ conversations: retryResponse.data });
+              conversation = retryResponse.data.find(conv => conv._id === openConversationId);
+            }
+          }
+          
+          if (conversation) {
+            // Tự động select conversation
+            setTimeout(() => {
+              this.selectConversation(conversation);
+            }, 100);
+          }
+          // Xóa flag sau khi đã xử lý
+          localStorage.removeItem('openConversationId');
+        }
       }
     } catch (error) {
       console.error('Load conversations error:', error);
@@ -317,6 +389,12 @@ export class ChatProvider extends Component {
 
         response = await api.sendMessageWithFile(formData);
       } else {
+        // Lấy recipientId trước khi gửi
+        const currentUserId = localStorage.getItem('userId');
+        const recipientId = currentConversation.participants.find(
+          p => p._id !== currentUserId
+        )?._id;
+        
         response = await api.sendMessage({
           conversationId: currentConversation._id,
           content,
@@ -326,6 +404,7 @@ export class ChatProvider extends Component {
 
       if (response.success) {
         const newMessage = response.data;
+        
         this.setState(prevState => ({
           messages: [...prevState.messages, newMessage]
         }));
