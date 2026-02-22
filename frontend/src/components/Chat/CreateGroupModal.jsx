@@ -159,13 +159,15 @@ class CreateGroupModal extends Component {
                     .map(friend => (
                       <div key={friend._id} className="member-chip">
                         <div className="chip-avatar">
-                          {friend.avatar ? (
-                            <img src={friend.avatar} alt={friend.fullName} />
-                          ) : (
-                            <div className="avatar-placeholder">
-                              {friend.fullName?.charAt(0) || friend.username?.charAt(0)}
-                            </div>
-                          )}
+                          <img 
+                            src={friend.avatar && friend.avatar.startsWith('http') 
+                              ? friend.avatar 
+                              : friend.avatar
+                              ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${friend.avatar}`
+                              : `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.fullName || friend.username)}&size=80&background=8b5cf6&color=fff`
+                            } 
+                            alt={friend.fullName} 
+                          />
                         </div>
                         <span className="chip-name">{friend.fullName || friend.username}</span>
                         <button 
@@ -220,13 +222,15 @@ class CreateGroupModal extends Component {
                     </div>
 
                     <div className="friend-avatar">
-                      {friend.avatar ? (
-                        <img src={friend.avatar} alt={friend.fullName} />
-                      ) : (
-                        <div className="avatar-placeholder">
-                          {friend.fullName?.charAt(0) || friend.username?.charAt(0)}
-                        </div>
-                      )}
+                      <img 
+                        src={friend.avatar && friend.avatar.startsWith('http') 
+                          ? friend.avatar 
+                          : friend.avatar
+                          ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${friend.avatar}`
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.fullName || friend.username)}&size=80&background=8b5cf6&color=fff`
+                        } 
+                        alt={friend.fullName} 
+                      />
                     </div>
 
                     <div className="friend-info">

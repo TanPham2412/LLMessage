@@ -300,11 +300,18 @@ class FriendNotifications extends Component {
                   <div key={request._id} className="friend-request-item">
                     <div className="request-avatar">
                       {request.from.avatar ? (
-                        <img src={request.from.avatar} alt={request.from.username} />
+                        <img 
+                          src={request.from.avatar.startsWith('http') 
+                            ? request.from.avatar 
+                            : `${process.env.REACT_APP_API_URL.replace('/api', '')}${request.from.avatar}`
+                          } 
+                          alt={request.from.username} 
+                        />
                       ) : (
-                        <div className="avatar-placeholder">
-                          {(request.from.fullName || request.from.username).charAt(0).toUpperCase()}
-                        </div>
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(request.from.fullName || request.from.username)}&size=80&background=8b5cf6&color=fff`}
+                          alt={request.from.username}
+                        />
                       )}
                     </div>
                     <div className="request-info">
@@ -352,11 +359,18 @@ class FriendNotifications extends Component {
                   >
                     <div className="notification-avatar">
                       {notification.from?.avatar ? (
-                        <img src={notification.from.avatar} alt="" />
+                        <img 
+                          src={notification.from.avatar.startsWith('http') 
+                            ? notification.from.avatar 
+                            : `${process.env.REACT_APP_API_URL.replace('/api', '')}${notification.from.avatar}`
+                          } 
+                          alt="" 
+                        />
                       ) : notification.from ? (
-                        <div className="avatar-placeholder">
-                          {(notification.from.fullName || notification.from.username).charAt(0).toUpperCase()}
-                        </div>
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(notification.from.fullName || notification.from.username)}&size=80&background=8b5cf6&color=fff`}
+                          alt=""
+                        />
                       ) : (
                         <div className="notification-icon">
                           {notification.type === 'accepted' && '✓'}

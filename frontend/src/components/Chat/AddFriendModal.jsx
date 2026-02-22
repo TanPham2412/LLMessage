@@ -160,13 +160,15 @@ class AddFriendModal extends Component {
                 searchResults.map((user) => (
                   <div key={user._id} className="user-result-item">
                     <div className="user-result-avatar">
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.username} />
-                      ) : (
-                        <div className="avatar-placeholder">
-                          {user.username.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <img 
+                        src={user.avatar && user.avatar.startsWith('http') 
+                          ? user.avatar 
+                          : user.avatar
+                          ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${user.avatar}`
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || user.username)}&size=80&background=8b5cf6&color=fff`
+                        } 
+                        alt={user.username} 
+                      />
                       {user.isOnline && <span className="online-indicator"></span>}
                     </div>
                     <div className="user-result-info">

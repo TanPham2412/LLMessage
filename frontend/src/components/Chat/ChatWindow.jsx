@@ -147,12 +147,24 @@ class ChatWindow extends Component {
     
     // Nếu là group, hiển thị icon nhóm
     if (currentConversation.type === 'group') {
-      return '👥';
+      return <span className="group-icon">👥</span>;
     }
     
-    // Nếu là private, hiển thị chữ cái đầu
+    // Nếu là private, lấy thông tin participant
     const participant = currentConversation.participants?.find(p => p._id !== currentUserId);
-    return (participant?.fullName || 'U')[0].toUpperCase();
+    const name = participant?.fullName || participant?.username || 'User';
+    
+    // Nếu có avatar, hiển thị ảnh
+    if (participant?.avatar) {
+      const avatarUrl = participant.avatar.startsWith('http') 
+        ? participant.avatar 
+        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${participant.avatar}`;
+      return <img src={avatarUrl} alt={name} />;
+    }
+    
+    // Nếu không có avatar, hiển thị avatar mặc định từ UI Avatars
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=80&background=8b5cf6&color=fff`;
+    return <img src={defaultAvatar} alt={name} />;
   };
 
   render() {

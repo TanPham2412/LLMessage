@@ -34,12 +34,24 @@ class ConversationList extends Component {
   getConversationAvatar = (conversation) => {
     // Nếu là group, trả về icon nhóm
     if (conversation.type === 'group') {
-      return '👥';
+      return <span className="group-icon">👥</span>;
     }
     
-    // Nếu là private, trả về chữ cái đầu của tên
-    const name = this.getConversationName(conversation);
-    return name[0]?.toUpperCase() || '?';
+    // Nếu là private, lấy thông tin participant
+    const participant = this.getParticipant(conversation);
+    const name = participant?.fullName || participant?.username || 'User';
+    
+    // Nếu có avatar, hiển thị ảnh
+    if (participant?.avatar) {
+      const avatarUrl = participant.avatar.startsWith('http') 
+        ? participant.avatar 
+        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${participant.avatar}`;
+      return <img src={avatarUrl} alt={name} />;
+    }
+    
+    // Nếu không có avatar, hiển thị avatar mặc định từ UI Avatars
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=80&background=8b5cf6&color=fff`;
+    return <img src={defaultAvatar} alt={name} />;
   };
 
   handleSelectConversation = (conversation) => {
