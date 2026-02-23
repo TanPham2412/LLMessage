@@ -283,7 +283,9 @@ class FriendsListComponent extends Component {
             onClick={() => this.handleSendMessage(friend)}
             title="Nhắn tin"
           >
-            💬
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
           </button>
           
           {isConfirming ? (
@@ -293,14 +295,19 @@ class FriendsListComponent extends Component {
                 onClick={() => this.handleRemoveFriend(friend._id)}
                 title="Xác nhận xóa"
               >
-                ✓
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
               </button>
               <button 
                 className="friend-action-btn cancel-btn"
                 onClick={() => this.setState({ confirmDelete: null })}
                 title="Hủy"
               >
-                ✕
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             </>
           ) : (
@@ -309,7 +316,12 @@ class FriendsListComponent extends Component {
               onClick={() => this.setState({ confirmDelete: friend._id })}
               title="Xóa bạn"
             >
-              🗑️
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
             </button>
           )}
         </div>
@@ -342,9 +354,20 @@ class FriendsListComponent extends Component {
       <div className="friends-list-modal-overlay" onClick={this.props.onClose}>
         <div className="friends-list-modal" onClick={(e) => e.stopPropagation()}>
           <div className="friends-list-header">
-            <h2>👥 Bạn Bè</h2>
+            <h2>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:'middle', marginRight:'8px'}}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Bạn Bè
+            </h2>
             <button className="close-modal-btn" onClick={this.props.onClose}>
-              ✕
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
           </div>
           
@@ -354,7 +377,12 @@ class FriendsListComponent extends Component {
               className={`friends-tab ${activeTab === 'friends' ? 'active' : ''}`}
               onClick={() => this.setState({ activeTab: 'friends', searchQuery: '', searchResults: [] })}
             >
-              <span>👥</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
               <span>Danh Sách</span>
               <span className="tab-count">{this.state.friends.length}</span>
             </button>
@@ -362,7 +390,10 @@ class FriendsListComponent extends Component {
               className={`friends-tab ${activeTab === 'search' ? 'active' : ''}`}
               onClick={() => this.setState({ activeTab: 'search', searchQuery: '' })}
             >
-              <span>🔍</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
               <span>Tìm Bạn Bè</span>
             </button>
           </div>
@@ -386,7 +417,7 @@ class FriendsListComponent extends Component {
         <div className="friends-list-search">
           <input 
             type="text"
-            placeholder="🔍 Tìm kiếm bạn bè..."
+            placeholder="Tìm kiếm bạn bè..."
             value={searchQuery}
             onChange={(e) => this.setState({ searchQuery: e.target.value })}
             className="friends-search-input"
@@ -403,13 +434,25 @@ class FriendsListComponent extends Component {
             <div className="friends-empty">
               {searchQuery ? (
                 <>
-                  <div className="empty-icon">🔍</div>
+                  <div className="empty-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                  </div>
                   <p>Không tìm thấy bạn bè nào</p>
                   <small>Thử tìm kiếm với từ khóa khác</small>
                 </>
               ) : (
                 <>
-                  <div className="empty-icon">👥</div>
+                  <div className="empty-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
                   <p>Bạn chưa có bạn bè nào</p>
                   <small>Hãy thêm bạn bè để bắt đầu trò chuyện!</small>
                 </>
@@ -439,7 +482,7 @@ class FriendsListComponent extends Component {
         <div className="friends-list-search">
           <input 
             type="text"
-            placeholder="🔍 Tìm kiếm theo tên hoặc email..."
+            placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchQuery}
             onChange={this.handleSearchChange}
             className="friends-search-input"
@@ -451,13 +494,24 @@ class FriendsListComponent extends Component {
         <div className="friends-list-content">
           {searchQuery.trim().length === 0 ? (
             <div className="friends-empty">
-              <div className="empty-icon">💡</div>
+              <div className="empty-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                  </div>
               <p>Nhập tên hoặc email để tìm kiếm</p>
               <small>Tìm và thêm bạn bè mới</small>
             </div>
           ) : searchResults.length === 0 && !searchLoading ? (
             <div className="friends-empty">
-              <div className="empty-icon">😕</div>
+              <div className="empty-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                  </div>
               <p>Không tìm thấy người dùng nào</p>
               <small>Thử với từ khóa khác</small>
             </div>
@@ -515,7 +569,11 @@ class FriendsListComponent extends Component {
               disabled={searchLoading}
               title="Hủy kết bạn"
             >
-              🚫
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="8.5" cy="7" r="4"/>
+                <line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
             </button>
           ) : (
             <button 
@@ -524,7 +582,18 @@ class FriendsListComponent extends Component {
               disabled={searchLoading || isSent}
               title={isSent ? "Đã gửi lời mời" : "Thêm bạn bè"}
             >
-              {isSent ? '✓' : '➕'}
+              {isSent ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="8.5" cy="7" r="4"/>
+                  <line x1="20" y1="8" x2="20" y2="14"/>
+                  <line x1="23" y1="11" x2="17" y2="11"/>
+                </svg>
+              )}
             </button>
           )}
         </div>

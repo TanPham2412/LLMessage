@@ -38,7 +38,6 @@
   cursor: pointer;
   transition: all 0.3s;
   color: #f1f5f9;
-  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -230,11 +229,12 @@
 }
 
 .menu-icon {
-  font-size: 22px;
   width: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: rgba(241, 245, 249, 0.85);
+  flex-shrink: 0;
 }
 
 .menu-text {
@@ -382,9 +382,11 @@
 }
 
 .pin-icon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
   margin-right: 4px;
   color: #fbbf24;
+  vertical-align: middle;
   animation: pinBounce 0.5s ease-out;
 }
 
@@ -670,7 +672,6 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 18px;
   transition: all 0.3s;
   color: #a78bfa;
 }
@@ -781,7 +782,8 @@
 }
 
 .blocked-icon {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
   color: #fbbf24;
   animation: pulseWarning 2s ease-in-out infinite;
 }
@@ -850,7 +852,6 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 20px;
   transition: all 0.3s;
   color: #a78bfa;
 }
@@ -893,8 +894,6 @@
   height: 44px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 20px;
-  font-weight: 600;
   transition: all 0.3s;
   display: flex;
   align-items: center;
@@ -954,8 +953,10 @@
 }
 
 .group-icon {
-  font-size: 24px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Responsive */
