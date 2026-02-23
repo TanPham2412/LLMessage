@@ -52,6 +52,14 @@ const messageSchema = new mongoose.Schema({
   },
   deletedAt: {
     type: Date
+  },
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
+  blockedMessage: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

@@ -371,6 +371,35 @@
   background: rgba(167, 139, 250, 0.15);
 }
 
+.conversation-item.pinned {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.conversation-item.pinned:hover {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.pin-icon {
+  font-size: 14px;
+  margin-right: 4px;
+  color: #fbbf24;
+  animation: pinBounce 0.5s ease-out;
+}
+
+@keyframes pinBounce {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-15deg);
+  }
+  75% {
+    transform: rotate(15deg);
+  }
+}
+
 .conversation-avatar {
   width: 52px;
   height: 52px;
@@ -732,6 +761,44 @@
   color: #64748b;
   margin-top: 6px;
   padding: 0 6px;
+}
+
+/* Blocked Message Styles */
+.message-blocked .message-content {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  opacity: 0.7;
+}
+
+.message-blocked-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.blocked-icon {
+  font-size: 18px;
+  color: #fbbf24;
+  animation: pulseWarning 2s ease-in-out infinite;
+}
+
+@keyframes pulseWarning {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.blocked-text {
+  font-size: 12px;
+  color: #fca5a5;
+  font-style: italic;
 }
 
 /* Chat Input */

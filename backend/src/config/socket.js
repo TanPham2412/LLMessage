@@ -40,13 +40,11 @@ class SocketHandler {
     // Auto-join vào tất cả conversations của user
     this.joinUserConversations(userId, socket);
 
-    // Gửi danh sách users đang online cho user mới kết nối ngay lập tức
-    const onlineUserIds = this.getOnlineUsers();
-    console.log(`📤 Sending online users list to ${userId}:`, onlineUserIds);
-    socket.emit('online-users', { userIds: onlineUserIds });
+    // Gửi danh sách users đang online cho user mới kết nối (filter out restricted users)
+    this.sendOnlineUsersToUser(userId, socket);
 
-    // Phát trạng thái online đến tất cả users khác
-    this.io.emit('user-online', { userId });
+    // Phát trạng thái online đến tất cả users khác (trừ người bị restrict)
+    this.broadcastOnlineStatus(userId, true);
 
     // Tham gia vào room cá nhân của user
     socket.join(`user:${userId}`);
@@ -111,8 +109,13 @@ class SocketHandler {
         }
         
         // Emit receive-message SAU KHI đã join recipient (nếu cần)
-        socket.to(`conversation:${data.conversation}`).emit('receive-message', data);
-        console.log(`✅ Emitted receive-message to conversation:${data.conversation}`);
+        // Không gửi nếu message bị block
+        if (!data.isBlocked) {
+          socket.to(`conversation:${data.conversation}`).emit('receive-message', data);
+          console.log(`✅ Emitted receive-message to conversation:${data.conversation}`);
+        } else {
+          console.log(`🚫 Message blocked - not broadcasting to conversation:${data.conversation}`);
+        }
       }
     });
 
@@ -129,7 +132,7 @@ class SocketHandler {
     // Xử lý yêu cầu lấy danh sách users online
     socket.on('request-online-users', () => {
       console.log(`📊 User ${userId} requested online users list`);
-      socket.emit('online-users', { userIds: this.getOnlineUsers() });
+      this.sendOnlineUsersToUser(userId, socket);
     });
 
     // Xử lý ngắt kết nối
@@ -141,7 +144,8 @@ class SocketHandler {
       const lastSeen = new Date();
       await this.updateUserOnlineStatus(userId, false, lastSeen);
       
-      this.io.emit('user-offline', { userId, lastSeen });
+      // Phát trạng thái offline đến tất cả users khác (trừ người bị restrict)
+      this.broadcastOnlineStatus(userId, false, lastSeen);
     });
   }
 
@@ -155,6 +159,85 @@ class SocketHandler {
       console.log(`📝 Updated user ${userId}: isOnline=${isOnline}, lastSeen=${isOnline ? 'null' : lastSeen}`);
     } catch (error) {
       console.error('Update user online status error:', error);
+    }
+  }
+
+  // Broadcast online status (hide from restricted/blocked users)
+  async broadcastOnlineStatus(userId, isOnline, lastSeen = null) {
+    try {
+      const User = require('../models/User');
+      
+      // Get this user's restrictedUsers and blockedUsers
+      const user = await User.findById(userId).select('restrictedUsers blockedUsers');
+      if (!user) return;
+      
+      // Combine restricted and blocked users - they won't see this user's online status
+      const hiddenFromUserIds = [
+        ...user.restrictedUsers.map(id => id.toString()),
+        ...user.blockedUsers.map(id => id.toString())
+      ];
+      
+      // Broadcast to all connected users except those hidden from
+      this.onlineUsers.forEach((socketId, connectedUserId) => {
+        if (connectedUserId !== userId && !hiddenFromUserIds.includes(connectedUserId)) {
+          if (isOnline) {
+            this.io.to(socketId).emit('user-online', { userId });
+          } else {
+            this.io.to(socketId).emit('user-offline', { userId, lastSeen });
+          }
+        }
+      });
+      
+      console.log(`📡 Broadcasted ${isOnline ? 'online' : 'offline'} status for ${userId}, hidden from ${hiddenFromUserIds.length} users (restricted/blocked)`);
+    } catch (error) {
+      console.error('Broadcast online status error:', error);
+    }
+  }
+
+  // Send online users list (filter bidirectionally - hide restricted/blocked users both ways)
+  async sendOnlineUsersToUser(userId, socket) {
+    try {
+      const User = require('../models/User');
+      
+      // Get this user's restricted and blocked users
+      const user = await User.findById(userId).select('restrictedUsers blockedUsers');
+      if (!user) {
+        socket.emit('online-users', { userIds: [] });
+        return;
+      }
+      
+      // Get users who have restricted or blocked this user
+      const usersWhoRestrictedMe = await User.find({
+        restrictedUsers: userId
+      }).select('_id');
+      
+      const usersWhoBlockedMe = await User.find({
+        blockedUsers: userId
+      }).select('_id');
+      
+      // Combine all hidden user IDs (bidirectional)
+      const hiddenUserIds = new Set([
+        // Users I restricted/blocked
+        ...user.restrictedUsers.map(id => id.toString()),
+        ...user.blockedUsers.map(id => id.toString()),
+        // Users who restricted/blocked me
+        ...usersWhoRestrictedMe.map(u => u._id.toString()),
+        ...usersWhoBlockedMe.map(u => u._id.toString())
+      ]);
+      
+      const onlineUserIds = this.getOnlineUsers();
+      
+      // Filter out all hidden users
+      const filteredOnlineUsers = onlineUserIds.filter(onlineUserId => 
+        !hiddenUserIds.has(onlineUserId)
+      );
+      
+      console.log(`📤 Sending online users list to ${userId}: ${filteredOnlineUsers.length}/${onlineUserIds.length} users (${onlineUserIds.length - filteredOnlineUsers.length} hidden)`);
+      socket.emit('online-users', { userIds: filteredOnlineUsers });
+    } catch (error) {
+      console.error('Send online users error:', error);
+      // Fallback: send empty list
+      socket.emit('online-users', { userIds: [] });
     }
   }
 
