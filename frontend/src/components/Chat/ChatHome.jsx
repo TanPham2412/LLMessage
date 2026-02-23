@@ -359,11 +359,16 @@ class ChatHome extends Component {
   }
 }
 
-// Wrapper component to provide socket from context
-const ChatHomeWithSocket = (props) => (
-  <SocketContext.Consumer>
-    {({ socket }) => <ChatHome {...props} socket={socket} />}
-  </SocketContext.Consumer>
-);
+// Wrapper class component to provide socket from context
+class ChatHomeWithSocket extends Component {
+  render() {
+    const props = this.props;
+    return (
+      <SocketContext.Consumer>
+        {({ socket }) => <ChatHome {...props} socket={socket} />}
+      </SocketContext.Consumer>
+    );
+  }
+}
 
 export default ChatHomeWithSocket;
