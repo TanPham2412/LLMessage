@@ -1,12 +1,49 @@
 import React, { Component } from 'react';
 import { ChatContext } from '../../context/ChatContext.jsx';
+import ConversationContextMenu from './ConversationContextMenu.jsx';
+import api from '../../services/api.js';
 
 class ConversationList extends Component {
   static contextType = ChatContext;
 
+  constructor(props) {
+    super(props);
+    this.state = {
+      contextMenu: {
+        show: false,
+        x: 0,
+        y: 0,
+        conversation: null
+      },
+      blockedUsers: [],
+      restrictedUsers: []
+    };
+  }
+
   componentDidMount() {
     this.context.loadConversations();
+    this.loadBlockedAndRestrictedUsers();
   }
+
+  loadBlockedAndRestrictedUsers = async () => {
+    try {
+      const [blockedRes, restrictedRes] = await Promise.all([
+        api.getBlockedUsers(),
+        api.getRestrictedUsers()
+      ]);
+      
+      // API returns { success: true, data: [...] }
+      const blockedUsers = blockedRes.data || [];
+      const restrictedUsers = restrictedRes.data || [];
+      
+      this.setState({
+        blockedUsers,
+        restrictedUsers
+      });
+    } catch (error) {
+      console.error('Error loading blocked/restricted users:', error);
+    }
+  };
 
   formatTime = (date) => {
     const messageDate = new Date(date);
@@ -58,6 +95,166 @@ class ConversationList extends Component {
     this.context.selectConversation(conversation);
   };
 
+  handleContextMenu = (e, conversation) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({
+      contextMenu: {
+        show: true,
+        x: e.clientX,
+        y: e.clientY,
+        conversation
+      }
+    });
+  };
+
+  closeContextMenu = () => {
+    this.setState({
+      contextMenu: {
+        show: false,
+        x: 0,
+        y: 0,
+        conversation: null
+      }
+    });
+  };
+
+  handleContextMenuAction = async (action) => {
+    const { conversation } = this.state.contextMenu;
+    if (!conversation) return;
+
+    try {
+      switch (action) {
+        case 'pin':
+          await api.togglePinConversation(conversation._id);
+          await this.context.loadConversations();
+          break;
+
+        case 'createGroup':
+          // TODO: Open create group modal with this person selected
+          alert('Chức năng tạo nhóm chat đang được phát triển');
+          break;
+
+        case 'restrict':
+          const participant = this.getParticipant(conversation);
+          if (participant) {
+            const isAlreadyRestricted = this.isRestricted(participant._id);
+            
+            if (isAlreadyRestricted) {
+              // Unrestrict
+              const confirmUnrestrict = window.confirm(
+                `Bạn có chắc muốn bỏ hạn chế ${participant.fullName || participant.username}?`
+              );
+              if (confirmUnrestrict) {
+                try {
+                  await api.unrestrictUser(participant._id);
+                  await this.loadBlockedAndRestrictedUsers();
+                  alert('Đã bỏ hạn chế người dùng này');
+                } catch (err) {
+                  console.error('Unrestrict error:', err);
+                  const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra';
+                  alert(errorMsg);
+                }
+              }
+            } else {
+              // Restrict
+              const confirmRestrict = window.confirm(
+                `Bạn có chắc muốn hạn chế ${participant.fullName || participant.username}?\n\nHọ sẽ không thể thấy trạng thái online/offline của bạn.`
+              );
+              if (confirmRestrict) {
+                try {
+                  await api.restrictUser(participant._id);
+                  await this.loadBlockedAndRestrictedUsers();
+                  alert('Đã hạn chế người dùng này');
+                } catch (err) {
+                  console.error('Restrict error:', err);
+                  const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra khi hạn chế người dùng';
+                  alert(errorMsg);
+                }
+              }
+            }
+          }
+          break;
+
+        case 'block':
+          const participantToBlock = this.getParticipant(conversation);
+          if (participantToBlock) {
+            const isAlreadyBlocked = this.isBlocked(participantToBlock._id);
+            
+            if (isAlreadyBlocked) {
+              // Unblock
+              const confirmUnblock = window.confirm(
+                `Bạn có chắc muốn bỏ chặn ${participantToBlock.fullName || participantToBlock.username}?`
+              );
+              if (confirmUnblock) {
+                try {
+                  await api.unblockUser(participantToBlock._id);
+                  await this.loadBlockedAndRestrictedUsers();
+                  await this.context.loadConversations();
+                  alert('Đã bỏ chặn người dùng này');
+                } catch (err) {
+                  console.error('Unblock error:', err);
+                  const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra';
+                  alert(errorMsg);
+                }
+              }
+            } else {
+              // Block
+              const confirmBlock = window.confirm(
+                `Bạn có chắc muốn chặn ${participantToBlock.fullName || participantToBlock.username}?\n\nHọ sẽ không thể nhắn tin cho bạn và không thấy tin nhắn của bạn trong nhóm chung.`
+              );
+              if (confirmBlock) {
+                try {
+                  await api.blockUser(participantToBlock._id);
+                  await this.loadBlockedAndRestrictedUsers();
+                  await this.context.loadConversations();
+                  alert('Đã chặn người dùng này');
+                } catch (err) {
+                  console.error('Block error:', err);
+                  const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra khi chặn người dùng';
+                  alert(errorMsg);
+                }
+              }
+            }
+          }
+          break;
+
+        case 'delete':
+          const confirmDelete = window.confirm(
+            'Bạn có chắc muốn xóa trò chuyện này?\n\nLịch sử chat sẽ bị ẩn (chỉ ở phía bạn). Trò chuyện sẽ hiện lại khi có tin nhắn mới.'
+          );
+          if (confirmDelete) {
+            await api.deleteConversation(conversation._id);
+            await this.context.loadConversations();
+            // Nếu đang xem conversation này, clear selection
+            if (this.context.currentConversation?._id === conversation._id) {
+              this.context.selectConversation(null);
+            }
+          }
+          break;
+
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error('Error handling context menu action:', error);
+      alert('Có lỗi xảy ra. Vui lòng thử lại!');
+    }
+  };
+
+  isPinned = (conversation) => {
+    const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
+    return conversation.pinnedBy?.includes(currentUserId) || false;
+  };
+
+  isBlocked = (userId) => {
+    return this.state.blockedUsers.some(user => user._id === userId);
+  };
+
+  isRestricted = (userId) => {
+    return this.state.restrictedUsers.some(user => user._id === userId);
+  };
+
   getParticipant = (conversation) => {
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
     return conversation.participants?.find(p => p._id !== currentUserId);
@@ -94,6 +291,7 @@ class ConversationList extends Component {
 
   render() {
     const { conversations, currentConversation, loading, onlineUsers, unreadCounts = {} } = this.context;
+    const { contextMenu } = this.state;
 
     return (
       <div className="conversation-list">
@@ -114,20 +312,23 @@ class ConversationList extends Component {
             const isGroup = conversation.type === 'group';
             const unreadCount = unreadCounts[conversation._id] || 0;
             const hasUnread = unreadCount > 0;
+            const isPinned = this.isPinned(conversation);
             
             return (
               <div
                 key={conversation._id}
                 className={`conversation-item ${
                   currentConversation?._id === conversation._id ? 'active' : ''
-                } ${hasUnread ? 'has-unread' : ''}`}
+                } ${hasUnread ? 'has-unread' : ''} ${isPinned ? 'pinned' : ''}`}
                 onClick={() => this.handleSelectConversation(conversation)}
+                onContextMenu={(e) => this.handleContextMenu(e, conversation)}
               >
                 <div className={`conversation-avatar ${isOnline && !isGroup ? 'online' : ''} ${isGroup ? 'group-avatar' : ''}`}>
                   {this.getConversationAvatar(conversation)}
                 </div>
                 <div className="conversation-info">
                   <div className="conversation-name">
+                    {isPinned && <span className="pin-icon">📌</span>}
                     {this.getConversationName(conversation)}
                     {isGroup && <span className="group-badge">Nhóm</span>}
                   </div>
@@ -149,6 +350,24 @@ class ConversationList extends Component {
             );
           })}
         </div>
+
+        {contextMenu.show && contextMenu.conversation && (() => {
+          const participant = this.getParticipant(contextMenu.conversation);
+          const isRestricted = participant ? this.isRestricted(participant._id) : false;
+          const isBlocked = participant ? this.isBlocked(participant._id) : false;
+          return (
+            <ConversationContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              conversation={contextMenu.conversation}
+              isPinned={this.isPinned(contextMenu.conversation)}
+              isRestricted={isRestricted}
+              isBlocked={isBlocked}
+              onAction={this.handleContextMenuAction}
+              onClose={this.closeContextMenu}
+            />
+          );
+        })()}
       </div>
     );
   }

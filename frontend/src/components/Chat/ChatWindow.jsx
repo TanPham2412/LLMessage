@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { ChatContext } from '../../context/ChatContext.jsx';
 import { getTimeAgo } from '../../utils/timeUtils';
+import api from '../../services/api.js';
 
 class ChatWindow extends Component {
   static contextType = ChatContext;
@@ -11,10 +12,15 @@ class ChatWindow extends Component {
     this.state = {
       message: '',
       selectedFile: null,
-      currentTime: Date.now() // Track current time for real-time updates
+      currentTime: Date.now(), // Track current time for real-time updates
+      statusHidden: false, // Track if participant has hidden their status from me
+      isUserNearBottom: true, // Track if user is scrolled to bottom
+      prevMessagesLength: 0, // Track previous messages length for comparison
+      prevConversationId: null // Track previous conversation ID
     };
 
     this.messagesEndRef = React.createRef();
+    this.messagesContainerRef = React.createRef();
     this.timeUpdateInterval = null;
   }
 
@@ -23,6 +29,16 @@ class ChatWindow extends Component {
     this.timeUpdateInterval = setInterval(() => {
       this.setState({ currentTime: Date.now() });
     }, 10000); // Cập nhật mỗi 10 giây
+    
+    // Initialize conversation tracking
+    const { currentConversation, messages } = this.context;
+    this.setState({ 
+      prevConversationId: currentConversation?._id,
+      prevMessagesLength: messages?.length || 0
+    });
+    
+    // Check status visibility for current conversation
+    this.checkStatusVisibility();
   }
 
   componentWillUnmount() {
@@ -32,13 +48,74 @@ class ChatWindow extends Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (this.context.messages !== prevState.messages) {
-      this.scrollToBottom();
+    const { messages, currentConversation } = this.context;
+    const currentMessagesLength = messages?.length || 0;
+    const prevMessagesLength = prevState.prevMessagesLength;
+    const currentConversationId = currentConversation?._id;
+    const prevConversationId = prevState.prevConversationId;
+    
+    // Check if conversation changed
+    const conversationChanged = currentConversationId && currentConversationId !== prevConversationId;
+    
+    if (conversationChanged) {
+      // Conversation changed - reset tracking and scroll to bottom
+      this.setState({ 
+        prevConversationId: currentConversationId,
+        prevMessagesLength: currentMessagesLength,
+        isUserNearBottom: true 
+      });
+      this.checkStatusVisibility();
+      setTimeout(() => this.scrollToBottom(), 100);
+    } else {
+      // Same conversation - check for new messages
+      if (currentMessagesLength > prevMessagesLength) {
+        // New messages arrived
+        if (this.state.isUserNearBottom) {
+          this.scrollToBottom();
+        }
+        // Update messages length
+        this.setState({ prevMessagesLength: currentMessagesLength });
+      }
     }
   }
 
+  checkStatusVisibility = async () => {
+    const { currentConversation } = this.context;
+    const currentUserId = localStorage.getItem('userId');
+    
+    if (!currentConversation || currentConversation.type === 'group') {
+      this.setState({ statusHidden: false });
+      return;
+    }
+    
+    const participant = currentConversation.participants?.find(p => p._id !== currentUserId);
+    if (!participant) {
+      this.setState({ statusHidden: false });
+      return;
+    }
+    
+    try {
+      const response = await api.checkStatusVisibility(participant._id);
+      this.setState({ statusHidden: response.data.isHidden });
+    } catch (error) {
+      console.error('Error checking status visibility:', error);
+      this.setState({ statusHidden: false });
+    }
+  };
+
   scrollToBottom = () => {
     this.messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  handleScroll = (e) => {
+    const container = e.target;
+    const threshold = 150; // pixels from bottom
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    
+    // Update state only if changed
+    if (isNearBottom !== this.state.isUserNearBottom) {
+      this.setState({ isUserNearBottom: isNearBottom });
+    }
   };
 
   handleMessageChange = (e) => {
@@ -74,7 +151,7 @@ class ChatWindow extends Component {
 
   renderOnlineStatus = () => {
     const { currentConversation, onlineUsers } = this.context;
-    const { currentTime } = this.state; // Force re-render when currentTime changes
+    const { currentTime, statusHidden } = this.state; // Get statusHidden from state
     const currentUserId = localStorage.getItem('userId');
     
     if (!currentConversation?.participants) return null;
@@ -95,6 +172,12 @@ class ChatWindow extends Component {
     
     if (!participant) return null;
     
+    // If participant has hidden their status from me (restricted/blocked me), don't show anything
+    if (statusHidden) {
+      console.log('🚫 Status hidden for participant:', participant.fullName || participant.username);
+      return null;
+    }
+    
     // CRITICAL: Dựa vào participant.isOnline từ state (đã được update từ socket events)
     // thay vì chỉ dựa vào onlineUsers Set
     const isOnline = onlineUsers.has(participant._id);
@@ -105,7 +188,8 @@ class ChatWindow extends Component {
       participantIsOnline: participant.isOnline,
       isOnlineInSet: isOnline,
       onlineUsersSize: onlineUsers.size,
-      lastSeen: participant.lastSeen
+      lastSeen: participant.lastSeen,
+      statusHidden
     });
     
     if (isOnline) {
@@ -200,24 +284,34 @@ class ChatWindow extends Component {
           </div>
         </div>
 
-        <div className="chat-messages">
+        <div 
+          className="chat-messages" 
+          ref={this.messagesContainerRef}
+          onScroll={this.handleScroll}
+        >
           {messages.map((msg) => (
             <div
               key={msg._id}
               className={`message ${
                 msg.sender._id === currentUserId ? 'message-sent' : 'message-received'
-              }`}
+              } ${msg.isBlocked ? 'message-blocked' : ''}`}
             >
               <div className="message-content">
-                {msg.type === 'image' && (
+                {msg.isBlocked && (
+                  <div className="message-blocked-warning">
+                    <span className="blocked-icon">⚠️</span>
+                    <span className="blocked-text">{msg.blockedMessage || 'Tin nhắn không được gửi'}</span>
+                  </div>
+                )}
+                {msg.type === 'image' && !msg.isBlocked && (
                   <img
                     src={`http://localhost:5000${msg.fileUrl}`}
                     alt="attachment"
                     className="message-image"
                   />
                 )}
-                {msg.content && <p>{msg.content}</p>}
-                {msg.type === 'file' && msg.fileName && (
+                {msg.content && !msg.isBlocked && <p>{msg.content}</p>}
+                {msg.type === 'file' && msg.fileName && !msg.isBlocked && (
                   <a href={`http://localhost:5000${msg.fileUrl}`} download>
                     📎 {msg.fileName}
                   </a>

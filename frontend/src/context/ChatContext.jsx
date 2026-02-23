@@ -20,7 +20,8 @@ export class ChatProvider extends Component {
       error: null,
       typingUsers: [],
       onlineUsers: [], // Lưu online users trong state để trigger re-render
-      unreadCounts: {} // Track unread messages per conversation
+      unreadCounts: {}, // Track unread messages per conversation
+      conversationDeletedAt: null // Track deletion timestamp for current conversation
     };
 
     // Flag để prevent duplicate setup
@@ -341,8 +342,14 @@ export class ChatProvider extends Component {
       // Set conversation ngay lập tức, không hiển thị loading
       this.setState({ 
         currentConversation: conversation,
-        messages: [] // Clear messages cũ ngay lập tức
+        messages: [], // Clear messages cũ ngay lập tức
+        conversationDeletedAt: null // Clear deletion timestamp
       });
+
+      // If conversation is null (cleared/deleted), just return
+      if (!conversation) {
+        return;
+      }
 
       // Reset unread count ngay khi chọn
       this.setState(prevState => {
@@ -356,6 +363,7 @@ export class ChatProvider extends Component {
       });
 
       // Load messages trong background
+      // Backend will filter messages based on deletedBy array
       const response = await api.getMessages(conversation._id);
       
       if (response.success) {
@@ -409,6 +417,9 @@ export class ChatProvider extends Component {
           messages: [...prevState.messages, newMessage]
         }));
 
+        // Cập nhật conversation trong conversations list ngay lập tức
+        this.updateConversationWithNewMessage(currentConversation._id, newMessage);
+
         // Gửi qua socket
         const { socketService } = this.context;
         const currentUserId = localStorage.getItem('userId');
@@ -448,7 +459,7 @@ export class ChatProvider extends Component {
     
     if (messageSenderId === currentUserId?.toString()) {
       console.log('⏭️ Skipping own message - already added in sendMessage');
-      this.loadConversations(); // Cập nhật danh sách conversations cho lastMessage
+      // Không cần loadConversations vì đã được cập nhật trong sendMessage
       return;
     }
 
@@ -487,7 +498,45 @@ export class ChatProvider extends Component {
       });
     }
 
-    this.loadConversations();
+    // Cập nhật conversation với tin nhắn mới
+    this.updateConversationWithNewMessage(messageConvId, message);
+  };
+
+  // Utility method to update conversation with new message
+  updateConversationWithNewMessage = (conversationId, message) => {
+    this.setState(prevState => {
+      // Check if conversation exists in current state
+      const conversationExists = prevState.conversations.some(
+        conv => conv._id === conversationId
+      );
+      
+      // If conversation doesn't exist (was deleted), reload all conversations
+      if (!conversationExists) {
+        console.log('🔄 Conversation not found in state - reloading conversations');
+        this.loadConversations();
+        return prevState; // Return unchanged state, will be updated after reload
+      }
+      
+      const conversations = prevState.conversations.map(conv => {
+        if (conv._id === conversationId) {
+          return {
+            ...conv,
+            lastMessage: message,
+            lastMessageAt: message.createdAt || new Date()
+          };
+        }
+        return conv;
+      });
+
+      // Sort conversations by lastMessageAt (newest first)
+      conversations.sort((a, b) => {
+        const dateA = new Date(a.lastMessageAt || 0);
+        const dateB = new Date(b.lastMessageAt || 0);
+        return dateB - dateA;
+      });
+
+      return { conversations };
+    });
   };
 
   createConversation = async (participantId) => {

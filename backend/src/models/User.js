@@ -108,6 +108,14 @@ const userSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  blockedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  restrictedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   // 2FA Fields
   twoFactorEnabled: {
     type: Boolean,

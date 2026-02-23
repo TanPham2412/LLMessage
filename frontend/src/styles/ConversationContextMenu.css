@@ -1,0 +1,69 @@
+.conversation-context-menu {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  min-width: 200px;
+  overflow: hidden;
+  animation: contextMenuFadeIn 0.15s ease-out;
+}
+
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.context-menu-item:hover {
+  background-color: #f0f2f5;
+}
+
+.context-menu-item.warning:hover {
+  background-color: #fff3cd;
+}
+
+.context-menu-item.danger:hover {
+  background-color: #ffe6e6;
+}
+
+.context-menu-icon {
+  font-size: 18px;
+  margin-right: 12px;
+  width: 24px;
+  text-align: center;
+}
+
+.context-menu-text {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.context-menu-item.warning .context-menu-text {
+  color: #856404;
+}
+
+.context-menu-item.danger .context-menu-text {
+  color: #d32f2f;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background-color: #e4e6eb;
+  margin: 8px 0;
+}

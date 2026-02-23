@@ -1,5 +1,6 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
+const User = require('../models/User');
 
 class MessageController {
   async sendMessage(req, res) {
@@ -23,6 +24,20 @@ class MessageController {
         });
       }
 
+      // Check if sender is blocked by any participant
+      const otherParticipants = conversation.participants.filter(
+        p => p.toString() !== senderId.toString()
+      );
+      
+      let isBlockedBySomeone = false;
+      for (const participantId of otherParticipants) {
+        const participant = await User.findById(participantId).select('blockedUsers');
+        if (participant && participant.blockedUsers.includes(senderId)) {
+          isBlockedBySomeone = true;
+          break;
+        }
+      }
+
       // Tạo tin nhắn
       const messageData = {
         conversation: conversationId,
@@ -30,6 +45,12 @@ class MessageController {
         content,
         type
       };
+
+      // Nếu bị chặn, đánh dấu message
+      if (isBlockedBySomeone) {
+        messageData.isBlocked = true;
+        messageData.blockedMessage = 'Xin lỗi! Người dùng hiện tại không muốn nhận tin nhắn!';
+      }
 
       // Nếu có file được upload
       if (req.file) {
@@ -44,6 +65,11 @@ class MessageController {
       // Cập nhật tin nhắn cuối của conversation
       conversation.lastMessage = message._id;
       conversation.lastMessageAt = message.createdAt;
+      
+      // DO NOT remove from deletedBy when message arrives
+      // Keep deletedAt timestamp so getMessages can filter old messages
+      // Conversation will show up again due to new lastMessage, but messages will be filtered
+      
       await conversation.save();
 
       // Điền thông tin người gửi
@@ -86,27 +112,55 @@ class MessageController {
         });
       }
 
-      const messages = await Message.find({
+      // Check if user deleted this conversation - only show messages after deletion
+      const deletedInfo = conversation.deletedBy.find(item => {
+        // Handle both old format (ObjectId) and new format ({ user, deletedAt })
+        const itemUserId = item.user ? item.user.toString() : item.toString();
+        return itemUserId === userId.toString();
+      });
+      
+      const query = {
         conversation: conversationId,
         isDeleted: false
-      })
+      };
+      
+      // If user deleted conversation, only show messages after deletedAt timestamp
+      if (deletedInfo && deletedInfo.deletedAt) {
+        query.createdAt = { $gt: deletedInfo.deletedAt };
+      }
+
+      const messages = await Message.find(query)
         .populate('sender', 'username fullName avatar')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
-      const count = await Message.countDocuments({
-        conversation: conversationId,
-        isDeleted: false
+      // Filter out blocked messages that user didn't send
+      // Blocked messages should only be visible to the sender
+      const filteredMessages = messages.filter(msg => {
+        // If message is not blocked, show it
+        if (!msg.isBlocked) return true;
+        
+        // If message is blocked, only show to sender
+        const senderId = msg.sender._id ? msg.sender._id.toString() : msg.sender.toString();
+        return senderId === userId.toString();
       });
+
+      // Count with same query filter (don't count blocked messages user didn't send)
+      const allMessages = await Message.find(query);
+      const visibleCount = allMessages.filter(msg => {
+        if (!msg.isBlocked) return true;
+        const senderId = msg.sender._id ? msg.sender._id.toString() : msg.sender.toString();
+        return senderId === userId.toString();
+      }).length;
 
       res.json({
         success: true,
-        data: messages.reverse(),
+        data: filteredMessages.reverse(),
         pagination: {
-          total: count,
+          total: visibleCount,
           page: parseInt(page),
-          pages: Math.ceil(count / limit)
+          pages: Math.ceil(visibleCount / limit)
         }
       });
     } catch (error) {

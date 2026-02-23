@@ -32,6 +32,17 @@ router.delete('/:friendId', (req, res) => req.friendController.removeFriend(req,
 // Conversations
 router.get('/conversations', (req, res) => req.friendController.getConversations(req, res));
 router.post('/conversations', (req, res) => req.friendController.createConversation(req, res));
+router.post('/conversations/:conversationId/pin', (req, res) => req.friendController.togglePinConversation(req, res));
+router.delete('/conversations/:conversationId', (req, res) => req.friendController.deleteConversation(req, res));
 router.post('/groups', (req, res) => req.friendController.createGroup(req, res));
+
+// Block/Restrict
+router.post('/users/:userId/block', (req, res) => req.friendController.blockUser(req, res));
+router.delete('/users/:userId/block', (req, res) => req.friendController.unblockUser(req, res));
+router.post('/users/:userId/restrict', (req, res) => req.friendController.restrictUser(req, res));
+router.delete('/users/:userId/restrict', (req, res) => req.friendController.unrestrictUser(req, res));
+router.get('/blocked', (req, res) => req.friendController.getBlockedUsers(req, res));
+router.get('/restricted', (req, res) => req.friendController.getRestrictedUsers(req, res));
+router.get('/users/:userId/status-visibility', (req, res) => req.friendController.checkStatusVisibility(req, res));
 
 module.exports = router;

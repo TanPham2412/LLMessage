@@ -176,6 +176,53 @@ class APIService {
     return response.data;
   }
 
+  // Block/Restrict methods
+  async blockUser(userId) {
+    const response = await this.client.post(`/friends/users/${userId}/block`);
+    return response.data;
+  }
+
+  async unblockUser(userId) {
+    const response = await this.client.delete(`/friends/users/${userId}/block`);
+    return response.data;
+  }
+
+  async restrictUser(userId) {
+    const response = await this.client.post(`/friends/users/${userId}/restrict`);
+    return response.data;
+  }
+
+  async unrestrictUser(userId) {
+    const response = await this.client.delete(`/friends/users/${userId}/restrict`);
+    return response.data;
+  }
+
+  async getBlockedUsers() {
+    const response = await this.client.get('/friends/blocked');
+    return response.data;
+  }
+
+  async getRestrictedUsers() {
+    const response = await this.client.get('/friends/restricted');
+    return response.data;
+  }
+
+  async checkStatusVisibility(userId) {
+    const response = await this.client.get(`/friends/users/${userId}/status-visibility`);
+    return response.data;
+  }
+
+  // Conversation actions
+  async togglePinConversation(conversationId) {
+    const response = await this.client.post(`/friends/conversations/${conversationId}/pin`);
+    return response.data;
+  }
+
+  async deleteConversation(conversationId) {
+    const response = await this.client.delete(`/friends/conversations/${conversationId}`);
+    return response.data;
+  }
+
   // Các phương thức quản lý cuộc trò chuyện
   async getConversations() {
     const response = await this.client.get('/friends/conversations');
