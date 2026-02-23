@@ -26,45 +26,55 @@ export class ChatProvider extends Component {
 
     // Flag để prevent duplicate setup
     this.listenersSetup = false;
+
+    // Track previous socket connected state để phát hiện reconnect
+    this.prevConnected = false;
   }
 
   componentDidMount() {
     console.log('🎬 ChatProvider MOUNTED');
-    // Chỉ load data nếu đã đăng nhập (có token)
+
     const token = localStorage.getItem('token');
     if (token) {
       this.loadConversations();
       this.loadFriends();
       this.loadFriendRequests();
       
-      // Setup listeners - CHỈ 1 LẦN
+      // Setup listeners
       this.setupSocketListeners();
-      
-      // Setup reconnect listener để re-setup listeners khi socket reconnect
-      this.setupReconnectListener();
       
       // Sync online users từ SocketContext
       this.syncOnlineUsers();
     }
-  }
 
-  setupReconnectListener = () => {
-    const { socketService } = this.context;
-    if (socketService && socketService.socket) {
-      // Listen for reconnect event
-      socketService.socket.on('connect', () => {
-        console.log('🔄 Socket reconnected - re-setting up ChatContext listeners');
-        // Reset flag để cho phép setup lại
-        this.listenersSetup = false;
-        // Re-setup listeners
-        this.setupSocketListeners();
-      });
-    }
-  };
+    // Đặt prevConnected = true SAU KHI setup xong để tránh componentDidUpdate
+    // kích hoạt lần nữa khi socket fires 'connect' event lần đầu tiên (asynchronous).
+    // Luồng logout/login sẽ khiến connected đi từ false → true và trigger đúng.
+    this.prevConnected = true;
+  }
 
   componentDidUpdate(prevProps, prevState) {
     // Sync online users từ SocketContext khi nó thay đổi
     this.syncOnlineUsers();
+
+    // Phát hiện khi socket kết nối hoặc kết nối lại (connected đổi từ false → true)
+    // Điều này xảy ra sau logout/login hoặc mất mạng/kết nối lại
+    const currentConnected = this.context?.connected;
+    if (currentConnected && !this.prevConnected) {
+      console.log('🔄 ChatContext: Socket connected/reconnected - re-setup listeners & reload data');
+      // Reset flag để cho phép setup lại listeners
+      this.listenersSetup = false;
+      this.setupSocketListeners();
+
+      // Reload lại dữ liệu sau khi kết nối (cần thiết sau logout/login)
+      const token = localStorage.getItem('token');
+      if (token) {
+        this.loadConversations();
+        this.loadFriends();
+        this.loadFriendRequests();
+      }
+    }
+    this.prevConnected = currentConnected;
   }
 
   syncOnlineUsers = () => {
@@ -82,12 +92,6 @@ export class ChatProvider extends Component {
 
   componentWillUnmount() {
     this.removeSocketListeners();
-    
-    // Remove reconnect listener
-    const { socketService } = this.context;
-    if (socketService && socketService.socket) {
-      socketService.socket.off('connect');
-    }
   }
 
   setupSocketListeners = () => {

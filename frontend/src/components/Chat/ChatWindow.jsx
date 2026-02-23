@@ -231,7 +231,16 @@ class ChatWindow extends Component {
     
     // Nếu là group, hiển thị icon nhóm
     if (currentConversation.type === 'group') {
-      return <span className="group-icon">👥</span>;
+      return (
+        <span className="group-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </span>
+      );
     }
     
     // Nếu là private, lấy thông tin participant
@@ -278,9 +287,24 @@ class ChatWindow extends Component {
             </div>
           </div>
           <div className="chat-header-actions">
-            <button className="chat-header-btn" title="Gọi thoại">📞</button>
-            <button className="chat-header-btn" title="Gọi video">📹</button>
-            <button className="chat-header-btn" title="Thông tin">ℹ️</button>
+            <button className="chat-header-btn" title="Gọi thoại">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.13 6.13l1.88-1.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </button>
+            <button className="chat-header-btn" title="Gọi video">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+            </button>
+            <button className="chat-header-btn" title="Thông tin">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -299,7 +323,13 @@ class ChatWindow extends Component {
               <div className="message-content">
                 {msg.isBlocked && (
                   <div className="message-blocked-warning">
-                    <span className="blocked-icon">⚠️</span>
+                    <span className="blocked-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                      </svg>
+                    </span>
                     <span className="blocked-text">{msg.blockedMessage || 'Tin nhắn không được gửi'}</span>
                   </div>
                 )}
@@ -326,12 +356,18 @@ class ChatWindow extends Component {
         <form className="chat-input-form" onSubmit={this.handleSendMessage}>
           {selectedFile && (
             <div className="selected-file">
-              📎 {selectedFile.name}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:'4px'}}>
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+              {selectedFile.name}
               <button
                 type="button"
                 onClick={() => this.setState({ selectedFile: null })}
               >
-                ✕
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             </div>
           )}
@@ -344,7 +380,9 @@ class ChatWindow extends Component {
               style={{ display: 'none' }}
             />
             <label htmlFor="file-upload" className="btn-file" title="Đính kèm file">
-              📎
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
             </label>
 
             <input
@@ -356,7 +394,10 @@ class ChatWindow extends Component {
             />
 
             <button type="submit" className="btn-send" disabled={!message.trim() && !selectedFile} title="Gửi">
-              ➤
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
             </button>
           </div>
         </form>

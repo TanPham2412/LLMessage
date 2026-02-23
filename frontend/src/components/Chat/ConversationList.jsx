@@ -71,7 +71,16 @@ class ConversationList extends Component {
   getConversationAvatar = (conversation) => {
     // Nếu là group, trả về icon nhóm
     if (conversation.type === 'group') {
-      return <span className="group-icon">👥</span>;
+      return (
+        <span className="group-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </span>
+      );
     }
     
     // Nếu là private, lấy thông tin participant
@@ -328,7 +337,13 @@ class ConversationList extends Component {
                 </div>
                 <div className="conversation-info">
                   <div className="conversation-name">
-                    {isPinned && <span className="pin-icon">📌</span>}
+                    {isPinned && (
+                      <span className="pin-icon">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+                          <path d="M21 10.5V6h1a1 1 0 0 0 0-2H2a1 1 0 0 0 0 2h1v4.5a2 2 0 0 0 1.14 1.8L9 16v5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-5l4.86-3.7A2 2 0 0 0 21 10.5z"/>
+                        </svg>
+                      </span>
+                    )}
                     {this.getConversationName(conversation)}
                     {isGroup && <span className="group-badge">Nhóm</span>}
                   </div>

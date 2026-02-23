@@ -42,10 +42,21 @@
 }
 
 .context-menu-icon {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: 12px;
   width: 24px;
-  text-align: center;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.context-menu-item.warning .context-menu-icon {
+  color: #856404;
+}
+
+.context-menu-item.danger .context-menu-icon {
+  color: #d32f2f;
 }
 
 .context-menu-text {
