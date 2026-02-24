@@ -2,6 +2,13 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 
 class NotificationController {
+  constructor() {
+    this.socketHandler = null;
+  }
+
+  setSocketHandler(socketHandler) {
+    this.socketHandler = socketHandler;
+  }
   // Get all notifications for current user
   async getNotifications(req, res) {
     try {
@@ -190,6 +197,67 @@ class NotificationController {
     } catch (error) {
       console.error('Create notification error:', error);
       throw error;
+    }
+  }
+
+  // Report a user - sends notification to all admins
+  async reportUser(req, res) {
+    try {
+      const reporterId = req.user.id;
+      const { reportedUserId, reason, description } = req.body;
+
+      if (!reportedUserId || !reason) {
+        return res.status(400).json({ success: false, message: 'reportedUserId and reason are required' });
+      }
+
+      const [reporter, reportedUser, admins] = await Promise.all([
+        User.findById(reporterId).select('fullName username'),
+        User.findById(reportedUserId).select('fullName username'),
+        User.find({ role: 'admin' }).select('_id')
+      ]);
+
+      if (!reportedUser) {
+        return res.status(404).json({ success: false, message: 'Reported user not found' });
+      }
+
+      if (admins.length === 0) {
+        return res.status(500).json({ success: false, message: 'No admin found to receive report' });
+      }
+
+      const reporterName = reporter?.fullName || reporter?.username || 'Người dùng';
+      const reportedName = reportedUser.fullName || reportedUser.username;
+      const title = `Báo cáo người dùng: ${reportedName}`;
+      const message = `${reporterName} đã báo cáo ${reportedName} vì lý do: ${reason}${description ? '. Chi tiết: ' + description : ''}`;
+
+      const notifications = await Promise.all(
+        admins.map(admin =>
+          Notification.create({
+            recipient: admin._id,
+            sender: reporterId,
+            type: 'report',
+            title,
+            message,
+            data: { reportedUserId, reason, description, reporterId }
+          })
+        )
+      );
+
+      // Emit real-time socket notification to admins
+      if (this.socketHandler) {
+        admins.forEach(admin => {
+          this.socketHandler.sendNotificationToUser(admin._id.toString(), 'new-report', {
+            title,
+            message,
+            reportedUserId,
+            reason
+          });
+        });
+      }
+
+      res.json({ success: true, message: 'Báo cáo đã được gửi đến quản trị viên' });
+    } catch (error) {
+      console.error('Report user error:', error);
+      res.status(500).json({ success: false, message: 'Failed to submit report', error: error.message });
     }
   }
 }

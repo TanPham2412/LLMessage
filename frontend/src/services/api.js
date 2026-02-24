@@ -223,6 +223,11 @@ class APIService {
     return response.data;
   }
 
+  async reportUser(reportedUserId, reason, description = '') {
+    const response = await this.client.post('/notifications/report', { reportedUserId, reason, description });
+    return response.data;
+  }
+
   // Các phương thức quản lý cuộc trò chuyện
   async getConversations() {
     const response = await this.client.get('/friends/conversations');

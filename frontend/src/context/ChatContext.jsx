@@ -21,7 +21,9 @@ export class ChatProvider extends Component {
       typingUsers: [],
       onlineUsers: [], // Lưu online users trong state để trigger re-render
       unreadCounts: {}, // Track unread messages per conversation
-      conversationDeletedAt: null // Track deletion timestamp for current conversation
+      conversationDeletedAt: null, // Track deletion timestamp for current conversation
+      blockedUsers: [], // Shared blocked users list
+      restrictedUsers: [] // Shared restricted users list
     };
 
     // Flag để prevent duplicate setup
@@ -39,6 +41,7 @@ export class ChatProvider extends Component {
       this.loadConversations();
       this.loadFriends();
       this.loadFriendRequests();
+      this.loadBlockedAndRestricted();
       
       // Setup listeners
       this.setupSocketListeners();
@@ -72,6 +75,7 @@ export class ChatProvider extends Component {
         this.loadConversations();
         this.loadFriends();
         this.loadFriendRequests();
+        this.loadBlockedAndRestricted();
       }
     }
     this.prevConnected = currentConnected;
@@ -599,6 +603,21 @@ export class ChatProvider extends Component {
     }
   };
 
+  loadBlockedAndRestricted = async () => {
+    try {
+      const [blockedRes, restrictedRes] = await Promise.all([
+        api.getBlockedUsers(),
+        api.getRestrictedUsers(),
+      ]);
+      this.setState({
+        blockedUsers: blockedRes.data || [],
+        restrictedUsers: restrictedRes.data || [],
+      });
+    } catch (err) {
+      console.error('Load blocked/restricted error:', err);
+    }
+  };
+
   render() {
     // Đảm bảo unreadCounts luôn là object
     const safeUnreadCounts = this.state.unreadCounts || {};
@@ -611,6 +630,7 @@ export class ChatProvider extends Component {
       loadConversations: this.loadConversations,
       loadFriends: this.loadFriends,
       loadFriendRequests: this.loadFriendRequests,
+      loadBlockedAndRestricted: this.loadBlockedAndRestricted,
       selectConversation: this.selectConversation,
       sendMessage: this.sendMessage,
       createConversation: this.createConversation,

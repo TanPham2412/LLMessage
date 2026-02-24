@@ -56,8 +56,10 @@ class AppServer {
 
     // Truyền socket handler vào friend routes
     const FriendController = require('./controllers/friendController');
+    const notificationController = require('./controllers/notificationController');
     const friendController = new FriendController();
     friendController.setSocketHandler(this.socketHandler);
+    notificationController.setSocketHandler(this.socketHandler);
     
     // Lưu controller instance để routes sử dụng
     this.app.locals.friendController = friendController;

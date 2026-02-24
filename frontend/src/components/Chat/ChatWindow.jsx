@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { ChatContext } from '../../context/ChatContext.jsx';
 import { getTimeAgo } from '../../utils/timeUtils';
 import api from '../../services/api.js';
+import ConversationInfo from './ConversationInfo.jsx';
 
 class ChatWindow extends Component {
   static contextType = ChatContext;
@@ -16,7 +17,8 @@ class ChatWindow extends Component {
       statusHidden: false, // Track if participant has hidden their status from me
       isUserNearBottom: true, // Track if user is scrolled to bottom
       prevMessagesLength: 0, // Track previous messages length for comparison
-      prevConversationId: null // Track previous conversation ID
+      prevConversationId: null, // Track previous conversation ID
+      // showInfoPanel is now managed by parent ChatHome via props
     };
 
     this.messagesEndRef = React.createRef();
@@ -263,6 +265,7 @@ class ChatWindow extends Component {
   render() {
     const { currentConversation, messages, loading } = this.context;
     const { message, selectedFile } = this.state;
+    const showInfoPanel = this.props.showInfoPanel;
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
 
     if (!currentConversation) {
@@ -275,9 +278,15 @@ class ChatWindow extends Component {
     }
 
     return (
+      <div className="chat-window-with-info">
       <div className="chat-window">
         <div className="chat-window-header">
-          <div className="chat-window-header-info">
+          <div
+            className="chat-window-header-info clickable-header"
+            onClick={this.props.onToggleInfoPanel}
+            title="Xem thông tin cuộc trò chuyện"
+            style={{ cursor: 'pointer' }}
+          >
             <div className={`chat-header-avatar ${currentConversation.type === 'group' ? 'group-avatar' : ''}`}>
               {this.getConversationAvatar()}
             </div>
@@ -298,7 +307,11 @@ class ChatWindow extends Component {
                 <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
               </svg>
             </button>
-            <button className="chat-header-btn" title="Thông tin">
+            <button
+              className={`chat-header-btn${this.props.showInfoPanel ? ' active' : ''}`}
+              title="Thông tin cuộc trò chuyện"
+              onClick={this.props.onToggleInfoPanel}
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="16" x2="12" y2="12"/>
@@ -401,6 +414,14 @@ class ChatWindow extends Component {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Conversation Info Panel */}
+      {showInfoPanel && (
+        <ConversationInfo
+          onClose={this.props.onToggleInfoPanel}
+        />
+      )}
       </div>
     );
   }

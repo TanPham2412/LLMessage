@@ -24,4 +24,7 @@ router.delete('/:notificationId', notificationController.deleteNotification.bind
 // Clear all notifications
 router.delete('/', notificationController.clearAll.bind(notificationController));
 
+// Report a user (sends notification to admins)
+router.post('/report', notificationController.reportUser.bind(notificationController));
+
 module.exports = router;
