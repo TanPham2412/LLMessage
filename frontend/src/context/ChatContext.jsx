@@ -23,7 +23,8 @@ export class ChatProvider extends Component {
       unreadCounts: {}, // Track unread messages per conversation
       conversationDeletedAt: null, // Track deletion timestamp for current conversation
       blockedUsers: [], // Shared blocked users list
-      restrictedUsers: [] // Shared restricted users list
+      restrictedUsers: [], // Shared restricted users list
+      incomingTheme: null // Theme được nhận từ socket (người kia thay đổi chủ đề)
     };
 
     // Flag để prevent duplicate setup
@@ -131,6 +132,7 @@ export class ChatProvider extends Component {
     socketService.socket.on('user-typing', this.handleUserTyping);
     socketService.socket.on('user-stop-typing', this.handleUserStopTyping);
     socketService.socket.on('new-conversation', this.handleNewConversation);
+    socketService.socket.on('theme-received', this.handleThemeReceived);
 
     // Mark as setup
     this.listenersSetup = true;
@@ -240,6 +242,10 @@ export class ChatProvider extends Component {
     }));
   };
 
+  handleThemeReceived = (data) => {
+    this.setState({ incomingTheme: data });
+  };
+
   handleNewConversation = (conversation) => {
     console.log('🆕 Received new-conversation:', conversation);
     
@@ -276,6 +282,7 @@ export class ChatProvider extends Component {
     socketService.socket.off('user-typing', this.handleUserTyping);
     socketService.socket.off('user-stop-typing', this.handleUserStopTyping);
     socketService.socket.off('new-conversation', this.handleNewConversation);
+    socketService.socket.off('theme-received', this.handleThemeReceived);
 
     // Reset flag
     this.listenersSetup = false;
@@ -636,7 +643,8 @@ export class ChatProvider extends Component {
       createConversation: this.createConversation,
       sendFriendRequest: this.sendFriendRequest,
       acceptFriendRequest: this.acceptFriendRequest,
-      rejectFriendRequest: this.rejectFriendRequest
+      rejectFriendRequest: this.rejectFriendRequest,
+      socketService: this.context?.socketService
     };
 
     return (
