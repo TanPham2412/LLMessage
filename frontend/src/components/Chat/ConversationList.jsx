@@ -14,36 +14,13 @@ class ConversationList extends Component {
         x: 0,
         y: 0,
         conversation: null
-      },
-      blockedUsers: [],
-      restrictedUsers: []
+      }
     };
   }
 
   componentDidMount() {
     this.context.loadConversations();
-    this.loadBlockedAndRestrictedUsers();
   }
-
-  loadBlockedAndRestrictedUsers = async () => {
-    try {
-      const [blockedRes, restrictedRes] = await Promise.all([
-        api.getBlockedUsers(),
-        api.getRestrictedUsers()
-      ]);
-      
-      // API returns { success: true, data: [...] }
-      const blockedUsers = blockedRes.data || [];
-      const restrictedUsers = restrictedRes.data || [];
-      
-      this.setState({
-        blockedUsers,
-        restrictedUsers
-      });
-    } catch (error) {
-      console.error('Error loading blocked/restricted users:', error);
-    }
-  };
 
   formatTime = (date) => {
     const messageDate = new Date(date);
@@ -157,7 +134,7 @@ class ConversationList extends Component {
               if (confirmUnrestrict) {
                 try {
                   await api.unrestrictUser(participant._id);
-                  await this.loadBlockedAndRestrictedUsers();
+                  await this.context.loadBlockedAndRestricted();
                   alert('Đã bỏ hạn chế người dùng này');
                 } catch (err) {
                   console.error('Unrestrict error:', err);
@@ -173,7 +150,7 @@ class ConversationList extends Component {
               if (confirmRestrict) {
                 try {
                   await api.restrictUser(participant._id);
-                  await this.loadBlockedAndRestrictedUsers();
+                  await this.context.loadBlockedAndRestricted();
                   alert('Đã hạn chế người dùng này');
                 } catch (err) {
                   console.error('Restrict error:', err);
@@ -198,7 +175,7 @@ class ConversationList extends Component {
               if (confirmUnblock) {
                 try {
                   await api.unblockUser(participantToBlock._id);
-                  await this.loadBlockedAndRestrictedUsers();
+                  await this.context.loadBlockedAndRestricted();
                   await this.context.loadConversations();
                   alert('Đã bỏ chặn người dùng này');
                 } catch (err) {
@@ -215,7 +192,7 @@ class ConversationList extends Component {
               if (confirmBlock) {
                 try {
                   await api.blockUser(participantToBlock._id);
-                  await this.loadBlockedAndRestrictedUsers();
+                  await this.context.loadBlockedAndRestricted();
                   await this.context.loadConversations();
                   alert('Đã chặn người dùng này');
                 } catch (err) {
@@ -257,11 +234,11 @@ class ConversationList extends Component {
   };
 
   isBlocked = (userId) => {
-    return this.state.blockedUsers.some(user => user._id === userId);
+    return (this.context.blockedUsers || []).some(user => user._id === userId);
   };
 
   isRestricted = (userId) => {
-    return this.state.restrictedUsers.some(user => user._id === userId);
+    return (this.context.restrictedUsers || []).some(user => user._id === userId);
   };
 
   getParticipant = (conversation) => {
@@ -298,73 +275,178 @@ class ConversationList extends Component {
     }
   };
 
+  handleStartConversation = async (friendId) => {
+    try {
+      const conversation = await this.context.createConversation(friendId);
+      if (conversation) {
+        this.context.selectConversation(conversation);
+      }
+    } catch (err) {
+      console.error('Start conversation error:', err);
+      alert('Có lỗi xảy ra khi bắt đầu cuộc trò chuyện');
+    }
+  };
+
+  getFriendAvatar = (friend) => {
+    const name = friend.fullName || friend.username || 'User';
+    if (friend.avatar) {
+      const avatarUrl = friend.avatar.startsWith('http')
+        ? friend.avatar
+        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${friend.avatar}`;
+      return <img src={avatarUrl} alt={name} />;
+    }
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=80&background=8b5cf6&color=fff`;
+    return <img src={defaultAvatar} alt={name} />;
+  };
+
+  handleFriendClick = async (friend) => {
+    // If there's already a private conversation with this friend, open it
+    const existingConv = this.context.conversations.find(
+      conv => conv.type !== 'group' && conv.participants?.some(p => p._id === friend._id)
+    );
+    if (existingConv) {
+      this.context.selectConversation(existingConv);
+    } else {
+      await this.handleStartConversation(friend._id);
+    }
+  };
+
   render() {
-    const { conversations, currentConversation, loading, onlineUsers, unreadCounts = {} } = this.context;
+    const { conversations, currentConversation, loading, onlineUsers, unreadCounts = {}, friends = [] } = this.context;
     const { contextMenu } = this.state;
+
+    const searchQuery = (this.props.searchQuery || '').trim().toLowerCase();
+    const isSearching = searchQuery.length > 0;
+
+    // When searching: show all friends whose name matches
+    const matchingFriends = isSearching
+      ? friends.filter(friend => {
+          const name = (friend.fullName || friend.username || '').toLowerCase();
+          return name.includes(searchQuery);
+        })
+      : [];
+
+    // Normal mode: show all conversations
+    const filteredConversations = isSearching ? [] : conversations;
+
+    const noResults = isSearching && matchingFriends.length === 0;
 
     return (
       <div className="conversation-list">
-        <h3>Đoạn Chat</h3>
+        {!isSearching && <h3>Đoạn Chat</h3>}
 
         {loading && <div className="loading">Đang tải...</div>}
 
-        {conversations.length === 0 && !loading && (
+        {conversations.length === 0 && !loading && !isSearching && (
           <div className="empty-state">
             Chưa có cuộc trò chuyện nào. Bắt đầu chat với bạn bè!
           </div>
         )}
 
-        <div className="conversation-items">
-          {conversations.map((conversation) => {
-            const participant = this.getParticipant(conversation);
-            const isOnline = participant ? onlineUsers.has(participant._id) : false;
-            const isGroup = conversation.type === 'group';
-            const unreadCount = unreadCounts[conversation._id] || 0;
-            const hasUnread = unreadCount > 0;
-            const isPinned = this.isPinned(conversation);
-            
-            return (
-              <div
-                key={conversation._id}
-                className={`conversation-item ${
-                  currentConversation?._id === conversation._id ? 'active' : ''
-                } ${hasUnread ? 'has-unread' : ''} ${isPinned ? 'pinned' : ''}`}
-                onClick={() => this.handleSelectConversation(conversation)}
-                onContextMenu={(e) => this.handleContextMenu(e, conversation)}
-              >
-                <div className={`conversation-avatar ${isOnline && !isGroup ? 'online' : ''} ${isGroup ? 'group-avatar' : ''}`}>
-                  {this.getConversationAvatar(conversation)}
-                </div>
-                <div className="conversation-info">
-                  <div className="conversation-name">
-                    {isPinned && (
-                      <span className="pin-icon">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
-                          <path d="M21 10.5V6h1a1 1 0 0 0 0-2H2a1 1 0 0 0 0 2h1v4.5a2 2 0 0 0 1.14 1.8L9 16v5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-5l4.86-3.7A2 2 0 0 0 21 10.5z"/>
-                        </svg>
-                      </span>
-                    )}
-                    {this.getConversationName(conversation)}
-                    {isGroup && <span className="group-badge">Nhóm</span>}
+        {noResults && (
+          <div className="search-no-results">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <p>Không tìm thấy kết quả cho "{this.props.searchQuery}"</p>
+          </div>
+        )}
+
+        {/* Normal conversation list (no search) */}
+        {filteredConversations.length > 0 && (
+          <div className="conversation-items">
+            {filteredConversations.map((conversation) => {
+              const participant = this.getParticipant(conversation);
+              const isOnline = participant ? onlineUsers.has(participant._id) : false;
+              const isGroup = conversation.type === 'group';
+              const unreadCount = unreadCounts[conversation._id] || 0;
+              const hasUnread = unreadCount > 0;
+              const isPinned = this.isPinned(conversation);
+
+              return (
+                <div
+                  key={conversation._id}
+                  className={`conversation-item ${
+                    currentConversation?._id === conversation._id ? 'active' : ''
+                  } ${hasUnread ? 'has-unread' : ''} ${isPinned ? 'pinned' : ''}`}
+                  onClick={() => this.handleSelectConversation(conversation)}
+                  onContextMenu={(e) => this.handleContextMenu(e, conversation)}
+                >
+                  <div className={`conversation-avatar ${isOnline && !isGroup ? 'online' : ''} ${isGroup ? 'group-avatar' : ''}`}>
+                    {this.getConversationAvatar(conversation)}
                   </div>
-                  <div className={`conversation-last-message ${hasUnread ? 'unread' : ''}`}>
-                    {this.getLastMessagePreview(conversation)}
-                  </div>
-                </div>
-                <div className="conversation-meta">
-                  <div className="conversation-time">
-                    {this.formatTime(conversation.lastMessageAt)}
-                  </div>
-                  {hasUnread && (
-                    <div className="unread-badge">
-                      {unreadCount}
+                  <div className="conversation-info">
+                    <div className="conversation-name">
+                      {isPinned && (
+                        <span className="pin-icon">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+                            <path d="M21 10.5V6h1a1 1 0 0 0 0-2H2a1 1 0 0 0 0 2h1v4.5a2 2 0 0 0 1.14 1.8L9 16v5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-5l4.86-3.7A2 2 0 0 0 21 10.5z"/>
+                          </svg>
+                        </span>
+                      )}
+                      {this.getConversationName(conversation)}
+                      {isGroup && <span className="group-badge">Nhóm</span>}
                     </div>
-                  )}
+                    <div className={`conversation-last-message ${hasUnread ? 'unread' : ''}`}>
+                      {this.getLastMessagePreview(conversation)}
+                    </div>
+                  </div>
+                  <div className="conversation-meta">
+                    <div className="conversation-time">
+                      {this.formatTime(conversation.lastMessageAt)}
+                    </div>
+                    {hasUnread && (
+                      <div className="unread-badge">
+                        {unreadCount}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Friends search results */}
+        {matchingFriends.length > 0 && (
+          <>
+            <div className="search-section-label">Bạn bè ({matchingFriends.length})</div>
+            <div className="conversation-items">
+              {matchingFriends.map((friend) => {
+                const isOnline = onlineUsers.has(friend._id);
+                const hasConversation = conversations.some(
+                  conv => conv.type !== 'group' && conv.participants?.some(p => p._id === friend._id)
+                );
+                return (
+                  <div
+                    key={friend._id}
+                    className="conversation-item friend-search-item"
+                    onClick={() => this.handleFriendClick(friend)}
+                  >
+                    <div className={`conversation-avatar ${isOnline ? 'online' : ''}`}>
+                      {this.getFriendAvatar(friend)}
+                    </div>
+                    <div className="conversation-info">
+                      <div className="conversation-name">
+                        {friend.fullName || friend.username}
+                      </div>
+                      <div className="conversation-last-message friend-search-hint">
+                        {hasConversation ? 'Mở cuộc trò chuyện' : 'Bắt đầu trò chuyện'}
+                      </div>
+                    </div>
+                    <div className="conversation-meta">
+                      <div className="friend-search-chat-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {contextMenu.show && contextMenu.conversation && (() => {
           const participant = this.getParticipant(contextMenu.conversation);

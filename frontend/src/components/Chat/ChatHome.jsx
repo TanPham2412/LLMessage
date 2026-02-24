@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+﻿import React, { Component } from 'react';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { ChatContext } from '../../context/ChatContext.jsx';
 import { SocketContext } from '../../context/SocketContext.jsx';
@@ -25,7 +25,9 @@ class ChatHome extends Component {
       showNotifications: false,
       notificationTab: 'requests',
       notificationCount: 0,
-      showSettingsModal: false
+      showSettingsModal: false,
+      showInfoPanel: false,
+      searchQuery: ''
     };
     
     this.menuRef = React.createRef();
@@ -153,6 +155,14 @@ class ChatHome extends Component {
     this.setState({ notificationCount: count });
   };
 
+  handleSearchChange = (e) => {
+    this.setState({ searchQuery: e.target.value });
+  };
+
+  handleToggleInfoPanel = () => {
+    this.setState(prevState => ({ showInfoPanel: !prevState.showInfoPanel }));
+  };
+
   handleLogout = async () => {
     await this.context.logout();
     window.location.href = '/login';
@@ -160,14 +170,14 @@ class ChatHome extends Component {
 
   render() {
     const { user } = this.context;
-    const { showSidebar, showUserMenu, showNotifications, notificationTab, notificationCount } = this.state;
+    const { showSidebar, showUserMenu, showNotifications, notificationTab, notificationCount, showInfoPanel } = this.state;
 
     return (
       <div className="chat-home">
         <div className="top-header">
           <div className="header-actions">
             {/* Notification Bell */}
-            <div className="notification-container" ref={this.notificationRef}>
+            {!showInfoPanel && <div className="notification-container" ref={this.notificationRef}>
               <button className="notification-bell-btn" onClick={this.toggleNotifications}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -185,10 +195,10 @@ class ChatHome extends Component {
                   onCountChange={this.handleNotificationCountChange}
                 />
               )}
-            </div>
+            </div>}
 
             {/* User Menu */}
-            <div className="user-menu-container" ref={this.menuRef}>
+            {!showInfoPanel && <div className="user-menu-container" ref={this.menuRef}>
               <button className="user-info-btn" onClick={this.toggleUserMenu}>
                 <div className="user-avatar">
                   {user?.avatar ? (
@@ -314,7 +324,7 @@ class ChatHome extends Component {
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
           </div>
         </div>
         
@@ -329,15 +339,17 @@ class ChatHome extends Component {
                       <input 
                         type="text" 
                         placeholder="Tìm kiếm cuộc trò chuyện..."
+                        value={this.state.searchQuery}
+                        onChange={this.handleSearchChange}
                       />
                     </div>
                   </div>
-                  <ConversationList />
+                  <ConversationList searchQuery={this.state.searchQuery} />
                 </div>
               )}
               
               <div className="main-chat">
-                <ChatWindow />
+                <ChatWindow showInfoPanel={showInfoPanel} onToggleInfoPanel={this.handleToggleInfoPanel} />
               </div>
             </>
           )}
