@@ -64,6 +64,44 @@ class SocketHandler {
       });
     });
 
+    // Relay thay đổi chủ đề đến các thành viên khác và lưu tin nhắn hệ thống
+    socket.on('theme-change', async (data) => {
+      if (!data || !data.conversationId) return;
+
+      // Relay theme cho các thành viên khác để họ cập nhật ngay
+      socket.to(`conversation:${data.conversationId}`).emit('theme-received', {
+        conversationId: data.conversationId,
+        theme: data.theme,
+        fromUserId: userId
+      });
+
+      // Tạo tin nhắn hệ thống lưu vào DB (cả 2 đều thấy, kể cả offline)
+      try {
+        const Message = require('../models/Message');
+        const Conversation = require('../models/Conversation');
+        const User = require('../models/User');
+
+        const user = await User.findById(userId).select('fullName username');
+        const senderName = user?.fullName || user?.username || 'Ai đó';
+        const themeName = data.theme?.name || 'chủ đề mới';
+
+        const sysMsg = await Message.create({
+          conversation: data.conversationId,
+          sender: userId,
+          content: `${senderName} đã đổi chủ đề sang ${themeName}`,
+          type: 'system'
+        });
+
+        await sysMsg.populate('sender', 'username fullName avatar');
+        await Conversation.findByIdAndUpdate(data.conversationId, { lastMessage: sysMsg._id });
+
+        // Gửi đến TẤT CẢ thành viên trong room (kể cả người gửi)
+        self.io.to(`conversation:${data.conversationId}`).emit('receive-message', sysMsg.toObject());
+      } catch (err) {
+        console.error('❌ Error creating system theme message:', err);
+      }
+    });
+
     // Xử lý tin nhắn mới
     socket.on('send-message', async (data) => {
       console.log('📤 Backend received send-message:', {

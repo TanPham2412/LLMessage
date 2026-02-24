@@ -752,6 +752,49 @@
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  transition: background 0.6s ease;
+  position: relative;
+}
+
+/* System message (e.g. theme change notification) */
+.message-system {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 4px auto;
+  padding: 5px 14px;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11.5px;
+  font-style: italic;
+  max-width: 75%;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  animation: notifFadeIn 0.3s ease;
+}
+
+.message-system-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.message-system-time {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  opacity: 0.6;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+@keyframes notifFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .message {
@@ -759,6 +802,8 @@
   flex-direction: column;
   max-width: 65%;
   animation: messageSlide 0.3s ease-out;
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes messageSlide {
@@ -777,7 +822,7 @@
 }
 
 .message-sent .message-content {
-  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  background: var(--bubble-sent, linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%));
   color: white;
   border-radius: 20px 20px 4px 20px;
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
@@ -788,7 +833,7 @@
 }
 
 .message-received .message-content {
-  background: rgba(30, 41, 59, 0.8);
+  background: var(--bubble-received, rgba(30, 41, 59, 0.8));
   color: #f1f5f9;
   border-radius: 20px 20px 20px 4px;
   border: 1px solid rgba(167, 139, 250, 0.2);
@@ -1039,3 +1084,140 @@
     max-width: 85%;
   }
 }
+
+/* ═══════════════════════════════════════
+   THEME DECORATION OVERLAY
+   ═══════════════════════════════════════ */
+
+.chat-theme-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.deco-particle {
+  position: absolute;
+  pointer-events: none;
+
+  will-change: transform, opacity;
+  display: block;
+  line-height: 1;
+}
+
+/* Snow dot */
+.deco-snow {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.95) 0%, rgba(200,230,255,0.6) 60%, transparent 100%);
+  box-shadow: 0 0 4px rgba(180,220,255,0.5);
+}
+
+/* Star dot */
+.deco-star {
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #fffde0 0%, rgba(255,240,150,0.8) 40%, transparent 100%);
+  box-shadow: 0 0 6px 1px rgba(255,255,180,0.55);
+}
+
+/* Bubble */
+.deco-bubble {
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 28%, rgba(255,255,255,0.45) 0%, rgba(180,230,255,0.08) 60%, transparent 100%);
+  border: 1px solid rgba(160,220,255,0.4);
+  box-shadow: inset 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* Petal (oval) */
+.deco-petal {
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.3);
+}
+
+/* Firefly glow dot */
+.deco-firefly {
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(180,255,100,0.95) 0%, rgba(120,220,60,0.5) 50%, transparent 100%);
+  box-shadow: 0 0 8px 2px rgba(160,255,80,0.5), 0 0 16px 4px rgba(100,220,40,0.2);
+}
+
+
+@keyframes snowFall {
+  0%   { transform: translateY(0)      translateX(0)    rotate(0deg);   opacity: 0.95; }
+  25%  { transform: translateY(25vh)   translateX(22px) rotate(90deg);               }
+  50%  { transform: translateY(50vh)   translateX(-12px)rotate(180deg);              }
+  75%  { transform: translateY(75vh)   translateX(18px) rotate(270deg);              }
+  100% { transform: translateY(110vh)  translateX(0)    rotate(360deg); opacity: 0.2; }
+}
+
+/* ── Leaf / autumn fall ─────────────── */
+@keyframes leafFall {
+  0%   { transform: translateY(0)     translateX(0)    rotate(0deg);   opacity: 0.95; }
+  20%  { transform: translateY(20vh)  translateX(35px) rotate(72deg);               }
+  40%  { transform: translateY(40vh)  translateX(-22px)rotate(144deg);              }
+  60%  { transform: translateY(60vh)  translateX(42px) rotate(216deg);              }
+  80%  { transform: translateY(80vh)  translateX(-28px)rotate(288deg);              }
+  100% { transform: translateY(110vh) translateX(12px) rotate(400deg); opacity: 0.2; }
+}
+
+/* ── Petal fall (spring / sakura) ───── */
+@keyframes petalFall {
+  0%   { transform: translateY(0)     translateX(0)    rotate(0deg)   scale(1);    opacity: 0.9; }
+  33%  { transform: translateY(33vh)  translateX(45px) rotate(120deg) scale(0.9);               }
+  66%  { transform: translateY(66vh)  translateX(-32px)rotate(240deg) scale(1.1);               }
+  100% { transform: translateY(110vh) translateX(20px) rotate(380deg) scale(0.75); opacity: 0.3; }
+}
+
+/* ── Float up (hearts / bubbles) ────── */
+@keyframes floatUp {
+  0%   { transform: translateY(0)      translateX(0)    scale(1);    opacity: 0.9; }
+  20%  { transform: translateY(-20vh)  translateX(12px) scale(1.05);               }
+  40%  { transform: translateY(-40vh)  translateX(-8px) scale(0.95);               }
+  60%  { transform: translateY(-60vh)  translateX(14px) scale(1.02);               }
+  80%  { transform: translateY(-80vh)  translateX(-5px) scale(0.9);                }
+  100% { transform: translateY(-115vh) translateX(0)    scale(0.7);  opacity: 0;   }
+}
+
+/* ── Fish swim right ────────────────── */
+@keyframes swimRight {
+  0%   { transform: translateX(-90px);                      opacity: 0;    }
+  6%   {                                                     opacity: 0.85; }
+  94%  {                                                     opacity: 0.85; }
+  100% { transform: translateX(calc(100vw + 90px));          opacity: 0;    }
+}
+
+/* ── Fish swim left ─────────────────── */
+@keyframes swimLeft {
+  0%   { transform: translateX(calc(100vw + 90px)) scaleX(-1); opacity: 0;    }
+  6%   {                                                         opacity: 0.85; }
+  94%  {                                                         opacity: 0.85; }
+  100% { transform: translateX(-90px)              scaleX(-1); opacity: 0;    }
+}
+
+/* ── Star / firefly twinkle ─────────── */
+@keyframes twinkleStar {
+  0%, 100% { opacity: 0.15; transform: scale(0.8);  }
+  50%       { opacity: 1;   transform: scale(1.25); }
+}
+
+/* ── Gentle orbital drift ───────────── */
+/* used by: planets, astronaut, jellyfish, butterfly, bee, clouds offset */
+@keyframes driftOrbit {
+  0%   { transform: translateY(0px)   translateX(0px)  rotate(0deg);  }
+  25%  { transform: translateY(-18px) translateX(14px) rotate(6deg);  }
+  50%  { transform: translateY(-4px)  translateX(22px) rotate(-4deg); }
+  75%  { transform: translateY(14px)  translateX(6px)  rotate(5deg);  }
+  100% { transform: translateY(0px)   translateX(0px)  rotate(0deg);  }
+}
+
+/* ── Cloud slow drift (loops) ───────── */
+@keyframes cloudDrift {
+  0%   { transform: translateX(-120px); opacity: 0;   }
+  8%   {                                opacity: 0.6; }
+  92%  {                                opacity: 0.5; }
+  100% { transform: translateX(calc(100vw + 120px)); opacity: 0; }
+}
+

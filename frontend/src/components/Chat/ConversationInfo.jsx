@@ -3,6 +3,173 @@ import { ChatContext } from '../../context/ChatContext.jsx';
 import api from '../../services/api.js';
 import '../../styles/ConversationInfo.css';
 
+export const THEMES = [
+  {
+    id: 'default',
+    name: 'Mặc định',
+    preview: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+    chatBg: `
+      radial-gradient(ellipse at 15% 85%, rgba(139, 92, 246, 0.45) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 15%, rgba(236, 72, 153, 0.38) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(99, 32, 196, 0.18) 0%, transparent 65%),
+      linear-gradient(135deg, #0d0520 0%, #1a0a2e 60%, #0a0e27 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+    bubbleReceived: 'rgba(30, 20, 55, 0.88)',
+  },
+  {
+    id: 'messenger',
+    name: 'Messenger',
+    preview: 'linear-gradient(135deg, #0084ff, #00c6ff)',
+    chatBg: `
+      radial-gradient(ellipse at 20% 80%, rgba(0, 132, 255, 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 20%, rgba(0, 198, 255, 0.3) 0%, transparent 55%),
+      radial-gradient(ellipse at 55% 50%, rgba(0, 80, 180, 0.18) 0%, transparent 60%),
+      linear-gradient(160deg, #000f22 0%, #001a3d 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #0084ff, #00c6ff)',
+    bubbleReceived: 'rgba(10, 30, 65, 0.88)',
+  },
+  {
+    id: 'spring',
+    name: 'Mùa Xuân',
+    preview: 'linear-gradient(135deg, #56ab2f, #a8e063)',
+    chatBg: `
+      radial-gradient(ellipse at 10% 70%, rgba(86, 171, 47, 0.38) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 20%, rgba(168, 224, 99, 0.25) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 95%, rgba(56, 142, 60, 0.3) 0%, transparent 45%),
+      radial-gradient(ellipse at 70% 60%, rgba(100, 200, 60, 0.12) 0%, transparent 40%),
+      linear-gradient(160deg, #030d06 0%, #091810 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #56ab2f, #a8e063)',
+    bubbleReceived: 'rgba(10, 28, 12, 0.9)',
+  },
+  {
+    id: 'summer',
+    name: 'Mùa Hè',
+    preview: 'linear-gradient(135deg, #f7971e, #ffd200)',
+    chatBg: `
+      radial-gradient(ellipse at 50% 5%, rgba(255, 210, 0, 0.45) 0%, transparent 55%),
+      radial-gradient(ellipse at 10% 75%, rgba(247, 151, 30, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 80%, rgba(255, 140, 0, 0.2) 0%, transparent 45%),
+      radial-gradient(ellipse at 40% 50%, rgba(200, 100, 0, 0.1) 0%, transparent 50%),
+      linear-gradient(160deg, #0f0800 0%, #1e1000 60%, #2d1800 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #f7971e, #ffd200)',
+    bubbleReceived: 'rgba(40, 25, 0, 0.9)',
+  },
+  {
+    id: 'autumn',
+    name: 'Mùa Thu',
+    preview: 'linear-gradient(135deg, #e96c1e, #d4a00d)',
+    chatBg: `
+      radial-gradient(ellipse at 75% 20%, rgba(233, 108, 30, 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 75%, rgba(212, 100, 13, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 55% 90%, rgba(180, 60, 5, 0.25) 0%, transparent 45%),
+      radial-gradient(ellipse at 30% 30%, rgba(255, 160, 30, 0.12) 0%, transparent 40%),
+      linear-gradient(160deg, #0d0400 0%, #1e0900 60%, #2d1000 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #e96c1e, #ff8c42)',
+    bubbleReceived: 'rgba(40, 15, 0, 0.9)',
+  },
+  {
+    id: 'winter',
+    name: 'Mùa Đông',
+    preview: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+    chatBg: `
+      radial-gradient(ellipse at 25% 20%, rgba(79, 172, 254, 0.35) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 75%, rgba(0, 242, 254, 0.28) 0%, transparent 55%),
+      radial-gradient(ellipse at 55% 45%, rgba(150, 220, 255, 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 90%, rgba(50, 150, 220, 0.2) 0%, transparent 40%),
+      linear-gradient(160deg, #020a12 0%, #07121e 60%, #0d1e30 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+    bubbleReceived: 'rgba(8, 22, 42, 0.9)',
+  },
+  {
+    id: 'ocean',
+    name: 'Đại Dương',
+    preview: 'linear-gradient(135deg, #005c97, #363795)',
+    chatBg: `
+      radial-gradient(ellipse at 50% 100%, rgba(0, 120, 210, 0.55) 0%, transparent 55%),
+      radial-gradient(ellipse at 15% 30%, rgba(0, 92, 151, 0.35) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 55%, rgba(54, 55, 149, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 60% 20%, rgba(0, 60, 130, 0.2) 0%, transparent 45%),
+      linear-gradient(160deg, #000610 0%, #000e1e 60%, #001428 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #0575e6, #021b79)',
+    bubbleReceived: 'rgba(0, 12, 35, 0.92)',
+  },
+  {
+    id: 'universe',
+    name: 'Vũ Trụ',
+    preview: 'linear-gradient(135deg, #7b2ff7, #f107a3)',
+    chatBg: `
+      radial-gradient(ellipse at 20% 30%, rgba(123, 47, 247, 0.55) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, rgba(241, 7, 163, 0.48) 0%, transparent 50%),
+      radial-gradient(ellipse at 60% 10%, rgba(100, 0, 220, 0.35) 0%, transparent 45%),
+      radial-gradient(ellipse at 35% 85%, rgba(200, 0, 130, 0.28) 0%, transparent 45%),
+      radial-gradient(ellipse at 50% 50%, rgba(60, 0, 100, 0.2) 0%, transparent 60%),
+      linear-gradient(160deg, #03000e 0%, #0a0025 50%, #00000f 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #7b2ff7, #f107a3)',
+    bubbleReceived: 'rgba(12, 0, 35, 0.92)',
+  },
+  {
+    id: 'love',
+    name: 'Tình Yêu',
+    preview: 'linear-gradient(135deg, #e91e63, #ff6b8a)',
+    chatBg: `
+      radial-gradient(ellipse at 50% 25%, rgba(233, 30, 99, 0.48) 0%, transparent 55%),
+      radial-gradient(ellipse at 15% 80%, rgba(194, 24, 91, 0.35) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 15%, rgba(255, 107, 138, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(180, 10, 70, 0.2) 0%, transparent 45%),
+      linear-gradient(160deg, #080005 0%, #150008 60%, #200010 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #e91e63, #c2185b)',
+    bubbleReceived: 'rgba(32, 4, 18, 0.9)',
+  },
+  {
+    id: 'forest',
+    name: 'Rừng Xanh',
+    preview: 'linear-gradient(135deg, #2d6a4f, #52b788)',
+    chatBg: `
+      radial-gradient(ellipse at 50% 5%, rgba(100, 220, 100, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 55%, rgba(45, 106, 79, 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse at 90% 80%, rgba(82, 183, 136, 0.28) 0%, transparent 50%),
+      radial-gradient(ellipse at 60% 50%, rgba(30, 90, 50, 0.15) 0%, transparent 50%),
+      linear-gradient(160deg, #010803 0%, #061008 60%, #0a1a0d 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #2d6a4f, #52b788)',
+    bubbleReceived: 'rgba(5, 18, 8, 0.9)',
+  },
+  {
+    id: 'sunset',
+    name: 'Hoàng Hôn',
+    preview: 'linear-gradient(135deg, #fc4a1a, #f7b733)',
+    chatBg: `
+      radial-gradient(ellipse at 50% 0%, rgba(255, 170, 50, 0.55) 0%, transparent 55%),
+      radial-gradient(ellipse at 25% 60%, rgba(252, 74, 26, 0.38) 0%, transparent 52%),
+      radial-gradient(ellipse at 85% 80%, rgba(247, 183, 51, 0.25) 0%, transparent 48%),
+      radial-gradient(ellipse at 70% 30%, rgba(255, 80, 10, 0.18) 0%, transparent 45%),
+      linear-gradient(160deg, #080300 0%, #120600 60%, #1e0a00 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #fc4a1a, #f7b733)',
+    bubbleReceived: 'rgba(30, 10, 0, 0.9)',
+  },
+  {
+    id: 'sakura',
+    name: 'Hoa Anh Đào',
+    preview: 'linear-gradient(135deg, #f953c6, #b91d73)',
+    chatBg: `
+      radial-gradient(ellipse at 30% 20%, rgba(249, 83, 198, 0.48) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 65%, rgba(185, 29, 115, 0.4) 0%, transparent 52%),
+      radial-gradient(ellipse at 60% 90%, rgba(255, 180, 230, 0.2) 0%, transparent 45%),
+      radial-gradient(ellipse at 15% 75%, rgba(210, 40, 140, 0.25) 0%, transparent 48%),
+      linear-gradient(160deg, #070005 0%, #110009 60%, #1a000f 100%)`,
+    bubbleSent: 'linear-gradient(135deg, #f953c6, #b91d73)',
+    bubbleReceived: 'rgba(22, 3, 15, 0.9)',
+  },
+  {
+    id: 'custom',
+    name: 'Tùy chỉnh',
+    preview: 'linear-gradient(135deg, #4a4a4a, #888)',
+    chatBg: null,
+    bubbleSent: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+    bubbleReceived: 'rgba(30, 41, 59, 0.8)',
+    isCustom: true,
+  },
+];
+
 const REPORT_REASONS = [
   'Quấy rối hoặc bắt nạt',
   'Lừa đảo hoặc gian lận',
@@ -24,10 +191,15 @@ class ConversationInfo extends Component {
       sectionActions: true,
       sectionPrivacy: true,
       showReportModal: false,
+      showThemePicker: false,
+      customBgUrl: '',
+      customBgInput: '',
       reportReason: '',
       reportDescription: '',
       reportSubmitting: false,
       actionLoading: false,
+      selectedTheme: null,  // theme được chọn trong picker (chưa áp dụng)
+      personalOnly: true,   // chỉ áp dụng cho bản thân hay cả hai
     };
   }
 
@@ -93,6 +265,193 @@ class ConversationInfo extends Component {
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi xóa đoạn chat');
       this.setState({ actionLoading: false });
     }
+  };
+
+  handleOpenThemePicker = () => {
+    const convId = this.context.currentConversation?._id;
+    const saved = convId ? localStorage.getItem(`chat_theme_${convId}`) : null;
+    const parsed = saved ? JSON.parse(saved) : null;
+    this.setState({
+      showThemePicker: true,
+      customBgInput: parsed?.customBgUrl || '',
+      customBgUrl: parsed?.customBgUrl || '',
+      selectedTheme: parsed || null,
+    });
+  };
+
+  handleCloseThemePicker = () => this.setState({ showThemePicker: false });
+
+  // Áp dụng chủ đề đã chọn: lưu localStorage, thông báo ChatWindow, và emit socket nếu cần
+  handleApplyTheme = () => {
+    const { selectedTheme, personalOnly } = this.state;
+    if (!selectedTheme) return;
+    const convId = this.context.currentConversation?._id;
+    if (!convId) return;
+
+    const data = { ...selectedTheme };
+    try {
+      localStorage.setItem(`chat_theme_${convId}`, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Theme too large for localStorage, applying in-memory only');
+    }
+
+    if (this.props.onThemeChange) this.props.onThemeChange(data);
+
+    // Phát sóng đến đối phương qua socket nếu không phải chế độ cá nhân
+    if (!personalOnly) {
+      const { socketService } = this.context;
+      if (socketService && socketService.socket) {
+        socketService.socket.emit('theme-change', {
+          conversationId: convId,
+          theme: data
+        });
+      }
+    }
+
+    this.setState({ showThemePicker: false });
+  };
+
+  handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Vui lòng chọn file ảnh!'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const customTheme = THEMES.find(t => t.isCustom);
+      const builtTheme = { ...customTheme, chatBg: `url("${dataUrl}") center/cover no-repeat`, customBgUrl: dataUrl };
+      this.setState({ selectedTheme: builtTheme });
+    };
+    reader.readAsDataURL(file);
+    // reset so same file can be re-selected
+    e.target.value = '';
+  };
+
+  renderThemePicker = () => {
+    const { customBgInput, selectedTheme, personalOnly } = this.state;
+    const convId = this.context.currentConversation?._id;
+    const saved = convId ? localStorage.getItem(`chat_theme_${convId}`) : null;
+    const activeThemeId = saved ? JSON.parse(saved).id : 'default';
+    const selectedId = selectedTheme?.id;
+
+    return (
+      <div className="theme-picker-overlay" onClick={this.handleCloseThemePicker}>
+        <div className="theme-picker-modal" onClick={e => e.stopPropagation()}>
+          <div className="theme-picker-header">
+            <h3>Chọn chủ đề</h3>
+            <button className="theme-picker-close" onClick={this.handleCloseThemePicker}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          <div className="theme-grid">
+            {THEMES.filter(t => !t.isCustom).map(theme => (
+              <button
+                key={theme.id}
+                className={`theme-swatch${activeThemeId === theme.id ? ' active' : ''}${selectedId === theme.id ? ' selected' : ''}`}
+                onClick={() => this.setState({ selectedTheme: theme })}
+                title={theme.name}
+              >
+                {/* Mini chat preview card */}
+                <div className="theme-card" style={{ background: theme.chatBg || '#0a0e27' }}>
+                  <div className="theme-card-bubble theme-card-received"
+                    style={{ background: theme.bubbleReceived }} />
+                  <div className="theme-card-bubble theme-card-sent"
+                    style={{ background: theme.bubbleSent }} />
+                  <div className="theme-card-bubble theme-card-received theme-card-bubble--sm"
+                    style={{ background: theme.bubbleReceived }} />
+                  {activeThemeId === theme.id && (
+                    <div className="theme-swatch-check">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <span>{theme.name}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="theme-custom-section">
+            <p className="theme-custom-label">🎨 Hình nền tùy chỉnh</p>
+
+            {/* Upload from computer */}
+            <div className="theme-upload-row">
+              <label className="theme-upload-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Tải từ máy tính
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={this.handleFileUpload}
+                />
+              </label>
+              <span className="theme-upload-or">hoặc</span>
+            </div>
+
+            {/* URL input */}
+            <div className="theme-custom-input-row">
+              <input
+                type="text"
+                className="theme-custom-input"
+                placeholder="Dán link ảnh: https://example.com/image.jpg"
+                value={customBgInput}
+                onChange={e => this.setState({ customBgInput: e.target.value })}
+              />
+              <button
+                className="theme-custom-apply-btn"
+                disabled={!customBgInput.trim()}
+                onClick={() => {
+                  const customTheme = THEMES.find(t => t.isCustom);
+                  const builtTheme = {
+                    ...customTheme,
+                    chatBg: `url("${customBgInput.trim()}") center/cover no-repeat`,
+                    customBgUrl: customBgInput.trim()
+                  };
+                  this.setState({ selectedTheme: builtTheme });
+                }}
+              >
+                Chọn
+              </button>
+            </div>
+
+            {(selectedId === 'custom' || (activeThemeId === 'custom' && !selectedId)) && (
+              <p className="theme-custom-current">✓ Đang dùng hình nền tùy chỉnh</p>
+            )}
+          </div>
+
+          {/* Apply section */}
+          <div className="theme-apply-section">
+            <label className="theme-personal-toggle">
+              <input
+                type="checkbox"
+                checked={personalOnly}
+                onChange={e => this.setState({ personalOnly: e.target.checked })}
+              />
+              <span>Chỉ áp dụng cho tôi</span>
+            </label>
+            {!personalOnly && (
+              <p className="theme-apply-note">Cả hai người sẽ thấy chủ đề này</p>
+            )}
+            <button
+              className="theme-apply-btn"
+              disabled={!selectedTheme}
+              onClick={this.handleApplyTheme}
+            >
+              Áp dụng
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   handleOpenReport = () => this.setState({ showReportModal: true, reportReason: '', reportDescription: '' });
@@ -210,7 +569,7 @@ class ConversationInfo extends Component {
   render() {
     const { currentConversation, onlineUsers } = this.context;
     const { onClose } = this.props;
-    const { sectionCustomize, sectionActions, sectionPrivacy, showReportModal, actionLoading } = this.state;
+    const { sectionCustomize, sectionActions, sectionPrivacy, showReportModal, showThemePicker, actionLoading } = this.state;
 
     if (!currentConversation) return null;
 
@@ -321,7 +680,7 @@ class ConversationInfo extends Component {
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                   <line x1="2" y1="12" x2="22" y2="12"/>
                 </svg>,
-                'Chủ đề'
+                'Chủ đề', false, this.handleOpenThemePicker
               )}
               {this.renderActionRow(
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -438,6 +797,7 @@ class ConversationInfo extends Component {
       </div>
 
       {showReportModal && this.renderReportModal()}
+      {showThemePicker && this.renderThemePicker()}
       </>
     );
   }
