@@ -1,6 +1,6 @@
-# 💬 Chat App - Real-time Messaging & Social Connection
+# 💬 LLMessage - Real-time Messaging & Social Connection
 
-Ứng dụng nhắn tin thời gian thực với tính năng kết nối bạn bè, sử dụng **Class-based Architecture** cho cả Backend và Frontend.
+Ứng dụng nhắn tin thời gian thực với tính năng kết nối bạn bè, sử dụng **Mô hình 3 lớp MVC** (Model-View-Controller) và **Class-based Architecture**.
 
 ## 🎯 Tính Năng
 
@@ -19,49 +19,56 @@
 
 ## 🛠️ Công Nghệ Sử Dụng
 
-### Backend (Class-based)
-- **Node.js** + **Express.js**
-- **MongoDB** + **Mongoose**
+- **Node.js** + **Express.js** (Server / Controller)
+- **MongoDB** + **Mongoose** (Model / Data layer)
+- **React** Class Components (View / Presentation layer)
 - **Socket.IO** (Real-time communication)
 - **JWT** (Authentication)
 - **Multer** (File upload)
 - **bcryptjs** (Password hashing)
+- **React Router DOM**, **Context API** (Client routing & state)
+- **Axios**, **Socket.IO Client** (Client HTTP & WebSocket)
 
-### Frontend (Class Components)
-- **React** (Class Components only - NO Hooks)
-- **React Router DOM**
-- **Context API** (Class-based)
-- **Socket.IO Client**
-- **Axios**
-
-## 📁 Cấu Trúc Project
+## 📁 Cấu Trúc MVC
 
 ```
 LLMessage/
-├── backend/
-│   ├── src/
-│   │   ├── config/          # Database & Socket config
-│   │   ├── controllers/     # Class-based controllers
-│   │   ├── middleware/      # Auth & Upload middleware
-│   │   ├── models/          # MongoDB schemas
-│   │   ├── routes/          # API routes
-│   │   └── server.js        # Entry point
-│   ├── .env
-│   └── package.json
+├── server.js              # Entry point (khởi tạo Express + Socket.IO)
+├── package.json           # Dependencies server
+├── .env                   # Biến môi trường
 │
-└── frontend/
-    ├── public/
-    ├── src/
-    │   ├── components/      # Class components
-    │   │   ├── Admin/       # Admin pages (CRUD)
-    │   │   ├── Auth/        # Login/Register
-    │   │   └── Chat/        # Chat components
-    │   ├── context/         # Context API (class-based)
-    │   ├── services/        # API & Socket services
-    │   ├── styles/          # CSS files
-    │   └── App.js
-    ├── .env
-    └── package.json
+├── models/                # ═══ MODEL (Data Layer) ═══
+│   ├── User.js            # Schema người dùng
+│   ├── Conversation.js    # Schema cuộc trò chuyện
+│   ├── Message.js         # Schema tin nhắn
+│   └── Notification.js    # Schema thông báo
+│
+├── controllers/           # ═══ CONTROLLER (Business Logic) ═══
+│   ├── authController.js  # Đăng ký, đăng nhập, 2FA, Google OAuth
+│   ├── friendController.js# Bạn bè, hội thoại, chặn/hạn chế
+│   ├── messageController.js# Gửi/nhận/xóa tin nhắn
+│   ├── notificationController.js
+│   └── userController.js  # CRUD người dùng, tìm kiếm
+│
+├── views/                 # ═══ VIEW (Presentation Layer) ═══
+│   ├── public/index.html  # HTML shell
+│   └── src/
+│       ├── App.jsx        # Router + Providers
+│       ├── index.jsx      # React entry
+│       ├── components/    # Giao diện
+│       │   ├── Admin/     # Dashboard, Users CRUD, Messages CRUD
+│       │   ├── Auth/      # Login, Register, 2FA
+│       │   ├── Chat/      # ChatWindow, ConversationList, ...
+│       │   └── Profile/   # UserProfile, EditProfile, PublicProfile
+│       ├── context/       # AuthContext, SocketContext, ChatContext
+│       ├── services/      # API service, Socket service
+│       ├── styles/        # CSS
+│       └── utils/         # Tiện ích
+│
+├── routes/                # Định tuyến API
+├── config/                # Database & Socket config
+├── middleware/            # Auth & Upload middleware
+└── uploads/               # File tải lên
 ```
 
 ## 🚀 Cài Đặt & Chạy
@@ -69,38 +76,37 @@ LLMessage/
 ### 1. Cài Đặt MongoDB
 Đảm bảo MongoDB đang chạy trên `mongodb://localhost:27017`
 
-### 2. Backend Setup
+### 2. Cài Đặt Dependencies
 
 ```powershell
-# Di chuyển vào thư mục backend
-cd backend
+# Tại thư mục gốc LLMessage
+npm run install:all
+```
 
-# Cài đặt dependencies
-npm install
+### 3. Cấu Hình
 
-# Chạy server (development mode)
-npm run dev
+```powershell
+# Tạo file .env từ mẫu
+copy .env.example .env
+# Chỉnh sửa .env nếu cần
+```
 
-# Hoặc chạy production mode
+### 4. Chạy Ứng Dụng
+
+```powershell
+# Chạy cả Server + View cùng lúc (development)
+npm run dev:all
+
+# Hoặc chạy riêng:
+npm run dev      # Server (port 5000)
+npm run client    # React dev (port 3000)
+
+# Production: build View rồi chạy server
+npm run build
 npm start
 ```
 
-Backend sẽ chạy trên: **http://localhost:5000**
-
-### 3. Frontend Setup
-
-```powershell
-# Mở terminal mới, di chuyển vào thư mục frontend
-cd frontend
-
-# Cài đặt dependencies
-npm install
-
-# Chạy React app
-npm start
-```
-
-Frontend sẽ chạy trên: **http://localhost:3000**
+Server: **http://localhost:5000** | View dev: **http://localhost:3000**
 
 ## 🔑 Tài Khoản Test
 
@@ -197,20 +203,22 @@ class Login extends Component {
 
 ## 🔧 Environment Variables
 
-### Backend (.env)
+### Server (.env)
 ```
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/chatapp
+MONGODB_URI=mongodb://localhost:27017/LLMessage
 JWT_SECRET=your_jwt_secret_key_change_this_in_production
 JWT_EXPIRE=7d
 NODE_ENV=development
 CLIENT_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=your_google_client_id
 ```
 
-### Frontend (.env)
+### View (views/.env)
 ```
 REACT_APP_API_URL=http://localhost:5000/api
 REACT_APP_SOCKET_URL=http://localhost:5000
+REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
 ```
 
 ## 🎓 Đánh Giá Theo Tiêu Chí
@@ -226,12 +234,14 @@ REACT_APP_SOCKET_URL=http://localhost:5000
 
 ## 📝 Lưu Ý Quan Trọng
 
-- ✅ **Backend & Frontend đều dùng Class**, không có function components hay hooks
+- ✅ **Mô hình MVC 3 lớp**: Model (models/) - View (views/) - Controller (controllers/)
+- ✅ **Tất cả đều dùng Class**, không có function components hay hooks
 - ✅ **3 trang Admin CRUD**: Dashboard, User Management, Message Management
 - ✅ **Socket.IO** cho real-time messaging
 - ✅ **JWT Authentication** bảo mật
 - ✅ **Multer** cho upload file
 - ✅ **MongoDB** database
+- ✅ **Single project** - không phân chia backend/frontend riêng
 
 ## 🐛 Troubleshooting
 

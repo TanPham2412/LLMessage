@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -40,14 +41,14 @@ class AppServer {
     this.app.use(express.urlencoded({ extended: true }));
 
     // Cấu hình static files cho uploads
-    this.app.use('/uploads', express.static('uploads'));
+    this.app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   }
 
   initializeRoutes() {
     // Khởi tạo socket handler trước
     this.socketHandler = new SocketHandler(this.io);
     
-    // Định nghĩa Routes
+    // Định nghĩa Routes (Controller layer)
     const authRoutes = require('./routes/authRoutes');
     const userRoutes = require('./routes/userRoutes');
     const messageRoutes = require('./routes/messageRoutes');
@@ -73,6 +74,15 @@ class AppServer {
     // Endpoint kiểm tra sức khỏe
     this.app.get('/api/health', (req, res) => {
       res.json({ status: 'OK', message: 'Server is running' });
+    });
+
+    // Phục vụ React build (View layer) trong production
+    const buildPath = path.join(__dirname, 'views', 'build');
+    this.app.use(express.static(buildPath));
+
+    // SPA fallback: mọi route không phải API → trả về index.html
+    this.app.get('*', (req, res) => {
+      res.sendFile(path.join(buildPath, 'index.html'));
     });
   }
 
