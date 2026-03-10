@@ -1,7 +1,8 @@
 {
-  "name": "chat-app-frontend",
+  "name": "llmessage-views",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:5000",
   "dependencies": {
     "@react-oauth/google": "^0.13.4",
     "axios": "^1.6.2",
