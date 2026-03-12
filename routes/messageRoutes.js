@@ -1,29 +1,37 @@
 const express = require('express');
-const router = express.Router();
 const messageController = require('../controllers/messageController');
 const { authenticate, isAdmin } = require('../middleware/auth');
 const uploadMiddleware = require('../middleware/upload');
 
-// All routes require authentication
-router.use(authenticate);
+class MessageRoutes {
+  constructor() {
+    this.router = express.Router();
+    this.initializeRoutes();
+  }
 
-// Send message (with optional file upload)
-router.post(
-  '/',
-  uploadMiddleware.single('file'),
-  messageController.sendMessage.bind(messageController)
-);
+  initializeRoutes() {
+    // All routes require authentication
+    this.router.use(authenticate);
 
-// Get messages for a conversation
-router.get('/conversation/:conversationId', messageController.getMessages.bind(messageController));
+    // Send message (with optional file upload)
+    this.router.post(
+      '/',
+      uploadMiddleware.single('file'),
+      messageController.sendMessage.bind(messageController)
+    );
 
-// Mark message as read
-router.put('/:messageId/read', messageController.markAsRead.bind(messageController));
+    // Get messages for a conversation
+    this.router.get('/conversation/:conversationId', messageController.getMessages.bind(messageController));
 
-// Delete message
-router.delete('/:messageId', messageController.deleteMessage.bind(messageController));
+    // Mark message as read
+    this.router.put('/:messageId/read', messageController.markAsRead.bind(messageController));
 
-// Admin: Get all messages
-router.get('/admin/all', isAdmin, messageController.getAllMessages.bind(messageController));
+    // Delete message
+    this.router.delete('/:messageId', messageController.deleteMessage.bind(messageController));
 
-module.exports = router;
+    // Admin: Get all messages
+    this.router.get('/admin/all', isAdmin, messageController.getAllMessages.bind(messageController));
+  }
+}
+
+module.exports = new MessageRoutes().router;

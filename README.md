@@ -1,6 +1,6 @@
 # 💬 LLMessage - Real-time Messaging & Social Connection
 
-Ứng dụng nhắn tin thời gian thực với tính năng kết nối bạn bè, sử dụng **Mô hình 3 lớp MVC** (Model-View-Controller) và **Class-based Architecture**.
+Ứng dụng nhắn tin thời gian thực với tính năng kết nối bạn bè, xây dựng theo **Mô hình MVC 3 lớp** (Model-View-Controller) với toàn bộ backend và frontend đặt trong một project duy nhất. Tất cả component React sử dụng **Class-based Architecture** (không dùng functional component hay hooks).
 
 ## 🎯 Tính Năng
 
@@ -19,56 +19,100 @@
 
 ## 🛠️ Công Nghệ Sử Dụng
 
-- **Node.js** + **Express.js** (Server / Controller)
-- **MongoDB** + **Mongoose** (Model / Data layer)
-- **React** Class Components (View / Presentation layer)
-- **Socket.IO** (Real-time communication)
-- **JWT** (Authentication)
-- **Multer** (File upload)
-- **bcryptjs** (Password hashing)
-- **React Router DOM**, **Context API** (Client routing & state)
-- **Axios**, **Socket.IO Client** (Client HTTP & WebSocket)
+### Backend (Server)
+- **Node.js** + **Express.js** — Web server, routing, middleware
+- **MongoDB** + **Mongoose** — Database, ODM
+- **Socket.IO** — Real-time communication
+- **JWT** (`jsonwebtoken`) — Authentication & authorization
+- **Multer** — File & image upload
+- **bcryptjs** — Password hashing
+- **speakeasy** + **qrcode** — Two-Factor Authentication (2FA)
+
+### Frontend (Views)
+- **React 18** — Class-based components (không dùng hooks hay functional components)
+- **React Router DOM v6** — Client-side routing
+- **Context API** — State management (AuthContext, SocketContext, ChatContext)
+- **Axios** — HTTP client
+- **Socket.IO Client** — WebSocket client
 
 ## 📁 Cấu Trúc MVC
 
 ```
 LLMessage/
-├── server.js              # Entry point (khởi tạo Express + Socket.IO)
-├── package.json           # Dependencies server
+├── server.js              # Entry point (Express + Socket.IO)
+├── package.json           # Tất cả dependencies
 ├── .env                   # Biến môi trường
 │
 ├── models/                # ═══ MODEL (Data Layer) ═══
-│   ├── User.js            # Schema người dùng
-│   ├── Conversation.js    # Schema cuộc trò chuyện
-│   ├── Message.js         # Schema tin nhắn
-│   └── Notification.js    # Schema thông báo
+│   ├── User.js            # Schema người dùng (auth, profile, 2FA, friends)
+│   ├── Conversation.js    # Schema cuộc hội thoại (group & DM)
+│   ├── Message.js         # Schema tin nhắn (text, file, system)
+│   └── Notification.js    # Schema thông báo kết bạn
 │
 ├── controllers/           # ═══ CONTROLLER (Business Logic) ═══
-│   ├── authController.js  # Đăng ký, đăng nhập, 2FA, Google OAuth
-│   ├── friendController.js# Bạn bè, hội thoại, chặn/hạn chế
-│   ├── messageController.js# Gửi/nhận/xóa tin nhắn
-│   ├── notificationController.js
-│   └── userController.js  # CRUD người dùng, tìm kiếm
+│   ├── authController.js  # Đăng ký, đăng nhập, JWT, 2FA
+│   ├── friendController.js# Quản lý bạn bè, hội thoại, chặn/hạn chế
+│   ├── messageController.js# Gửi/nhận/xóa tin nhắn, upload file
+│   ├── notificationController.js # Thông báo real-time
+│   └── userController.js  # CRUD người dùng, tìm kiếm, admin
 │
 ├── views/                 # ═══ VIEW (Presentation Layer) ═══
-│   ├── public/index.html  # HTML shell
+│   ├── public/
+│   │   └── index.html     # HTML shell
 │   └── src/
-│       ├── App.jsx        # Router + Providers
-│       ├── index.jsx      # React entry
-│       ├── components/    # Giao diện
-│       │   ├── Admin/     # Dashboard, Users CRUD, Messages CRUD
-│       │   ├── Auth/      # Login, Register, 2FA
-│       │   ├── Chat/      # ChatWindow, ConversationList, ...
-│       │   └── Profile/   # UserProfile, EditProfile, PublicProfile
-│       ├── context/       # AuthContext, SocketContext, ChatContext
-│       ├── services/      # API service, Socket service
-│       ├── styles/        # CSS
-│       └── utils/         # Tiện ích
+│       ├── App.jsx        # Router + Context Providers
+│       ├── index.jsx      # React entry point
+│       ├── components/
+│       │   ├── Admin/
+│       │   │   ├── AdminDashboard.jsx  # Thống kê hệ thống
+│       │   │   ├── AdminUsers.jsx      # CRUD người dùng
+│       │   │   └── AdminMessages.jsx   # Xem & xóa tin nhắn
+│       │   ├── Auth/
+│       │   │   ├── Login.jsx
+│       │   │   ├── Register.jsx
+│       │   │   └── TwoFactorAuth.jsx
+│       │   ├── Chat/
+│       │   │   ├── ChatHome.jsx           # Layout chính
+│       │   │   ├── ChatWindow.jsx         # Cửa sổ nhắn tin
+│       │   │   ├── ConversationList.jsx   # Danh sách hội thoại
+│       │   │   ├── ConversationInfo.jsx   # Thông tin nhóm/người dùng
+│       │   │   ├── ConversationContextMenu.jsx
+│       │   │   ├── FriendsList.jsx        # Danh sách bạn bè & tìm kiếm
+│       │   │   ├── FriendNotifications.jsx
+│       │   │   ├── AddFriendModal.jsx
+│       │   │   ├── CreateGroupModal.jsx
+│       │   │   └── UserSettings.jsx       # Cài đặt tài khoản & 2FA
+│       │   └── Profile/
+│       │       ├── UserProfile.jsx
+│       │       ├── EditProfile.jsx
+│       │       └── PublicProfile.jsx
+│       ├── context/
+│       │   ├── AuthContext.jsx   # Quản lý auth state
+│       │   ├── SocketContext.jsx # Quản lý socket connection
+│       │   └── ChatContext.jsx   # Quản lý chat state
+│       ├── services/
+│       │   ├── api.js    # Axios instance & API calls
+│       │   └── socket.js # Socket.IO client service
+│       ├── styles/        # CSS files
+│       └── utils/
+│           └── timeUtils.js
 │
-├── routes/                # Định tuyến API
-├── config/                # Database & Socket config
-├── middleware/            # Auth & Upload middleware
-└── uploads/               # File tải lên
+├── routes/                # API route definitions
+│   ├── authRoutes.js
+│   ├── friendRoutes.js
+│   ├── messageRoutes.js
+│   ├── notificationRoutes.js
+│   └── userRoutes.js
+│
+├── config/                # Cấu hình
+│   ├── db.js              # MongoDB connection
+│   └── socket.js          # Socket.IO handlers
+│
+├── middleware/            # Express middleware
+│   ├── auth.js            # JWT verify middleware
+│   └── upload.js          # Multer file upload
+│
+└── uploads/               # File & ảnh được tải lên
 ```
 
 ## 🚀 Cài Đặt & Chạy
@@ -145,31 +189,32 @@ db.users.updateOne(
 
 ## 🎨 Class-based Architecture
 
-### Backend Example
+Toàn bộ project sử dụng Class syntax — không có functional component hay hooks.
+
+### Backend Controller (Class)
 ```javascript
-// Controller với Class
 class AuthController {
-  async login(req, res) {
-    // Logic
-  }
+  async login(req, res) { /* ... */ }
+  async register(req, res) { /* ... */ }
 }
 module.exports = new AuthController();
 ```
 
-### Frontend Example
-```javascript
-// Component với Class
+### Frontend Component (Class)
+```jsx
 class Login extends Component {
   constructor(props) {
     super(props);
     this.state = { email: '', password: '' };
   }
-  
   render() {
     return <div>...</div>;
   }
 }
+export default Login;
 ```
+
+> **Lưu ý**: Một số wrapper nhỏ buộc phải dùng `function` declaration (không phải `const arrow`) để bridge React Router v6 hooks (`useNavigate`, `useParams`) vào class components. Đây là giới hạn kỹ thuật của React — hooks chỉ gọi được trong function components.
 
 ## 📋 API Endpoints
 
@@ -234,14 +279,15 @@ REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
 
 ## 📝 Lưu Ý Quan Trọng
 
-- ✅ **Mô hình MVC 3 lớp**: Model (models/) - View (views/) - Controller (controllers/)
-- ✅ **Tất cả đều dùng Class**, không có function components hay hooks
+- ✅ **Mô hình MVC 3 lớp**: Model (`models/`) — View (`views/`) — Controller (`controllers/`)
+- ✅ **Single project** — không phân chia backend/frontend riêng biệt
+- ✅ **Tất cả component và controller dùng Class** — không có `const X = () =>` hay functional component
 - ✅ **3 trang Admin CRUD**: Dashboard, User Management, Message Management
 - ✅ **Socket.IO** cho real-time messaging
-- ✅ **JWT Authentication** bảo mật
-- ✅ **Multer** cho upload file
+- ✅ **JWT Authentication** bảo mật API
+- ✅ **Two-Factor Authentication (2FA)** với TOTP và backup codes
+- ✅ **Multer** cho upload file & hình ảnh
 - ✅ **MongoDB** database
-- ✅ **Single project** - không phân chia backend/frontend riêng
 
 ## 🐛 Troubleshooting
 
@@ -269,4 +315,4 @@ Nếu gặp vấn đề, kiểm tra:
 
 ---
 
-**Developed with ❤️ using Class-based Architecture**
+**Developed with ❤️ — Class-based MVC Architecture | Node.js + React + MongoDB + Socket.IO**

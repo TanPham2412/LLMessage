@@ -602,10 +602,10 @@ class FriendsListComponent extends Component {
   };
 }
 
-// Wrapper with router navigation
-const FriendsList = (props) => {
+// Wrapper with router navigation (function declaration to avoid const)
+function FriendsList(props) {
   const navigate = useNavigate();
   return <FriendsListComponent {...props} navigate={navigate} />;
-};
+}
 
 export default FriendsList;

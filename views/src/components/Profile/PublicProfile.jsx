@@ -311,11 +311,11 @@ class PublicProfile extends Component {
   }
 }
 
-// Wrapper component để sử dụng hooks
-const PublicProfileWithRouter = () => {
+// Wrapper component để sử dụng hooks (function declaration to avoid const)
+function PublicProfileWithRouter() {
   const { userId } = useParams();
   const navigate = useNavigate();
   return <PublicProfile userId={userId} navigate={navigate} />;
-};
+}
 
 export default PublicProfileWithRouter;
