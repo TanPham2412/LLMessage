@@ -200,6 +200,14 @@ class ConversationInfo extends Component {
       actionLoading: false,
       selectedTheme: null,  // theme được chọn trong picker (chưa áp dụng)
       personalOnly: true,   // chỉ áp dụng cho bản thân hay cả hai
+      // Nickname panel
+      showNicknamePanel: false,
+      nicknames: [],
+      nicknameLoading: false,
+      savingNickname: false,
+      editingTargetId: null,
+      editNicknameValue: '',
+      editNicknamePublic: true,
     };
   }
 
@@ -471,6 +479,206 @@ class ConversationInfo extends Component {
     finally { this.setState({ reportSubmitting: false }); }
   };
 
+  handleCreateGroup = () => {
+    const participant = this.getParticipant();
+    if (participant && this.props.onCreateGroupWithFriend) {
+      this.props.onCreateGroupWithFriend(participant._id);
+    }
+  };
+
+  handleOpenNicknamePanel = async () => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId) return;
+    // Pre-fill with context data to avoid blank panel while loading
+    const preloaded = this.context.currentConversationNicknames || [];
+    this.setState({ showNicknamePanel: true, nicknameLoading: preloaded.length === 0, nicknames: preloaded });
+    try {
+      const res = await api.getNicknames(convId);
+      this.setState({ nicknames: res.data || [], nicknameLoading: false });
+    } catch {
+      this.setState({ nicknameLoading: false });
+    }
+  };
+
+  handleCloseNicknamePanel = () => {
+    this.setState({ showNicknamePanel: false, editingTargetId: null, editNicknameValue: '', editNicknamePublic: true });
+  };
+
+  handleStartEditNickname = (participant) => {
+    const currentUserId = localStorage.getItem('userId');
+    const pId = participant._id?.toString();
+    const existing = this.state.nicknames.find(n => {
+      const sid = (n.setter?._id || n.setter)?.toString();
+      const tid = (n.target?._id || n.target)?.toString();
+      return sid === currentUserId && tid === pId;
+    });
+    this.setState({
+      editingTargetId: pId,
+      editNicknameValue: existing?.nickname || '',
+      editNicknamePublic: existing ? !!existing.isPublic : true,
+    });
+  };
+
+  handleCancelEditNickname = () => {
+    this.setState({ editingTargetId: null, editNicknameValue: '', editNicknamePublic: true });
+  };
+
+  handleDeleteNickname = async (pId) => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId || !pId) return;
+    if (!window.confirm('Xóa biệt danh này?')) return;
+    try {
+      const res = await api.setNickname(convId, pId, '', true);
+      this.setState({ nicknames: res.data || [] });
+      if (this.context.refreshCurrentNicknames) {
+        this.context.refreshCurrentNicknames();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
+    }
+  };
+
+  handleSaveNickname = async () => {
+    const { editingTargetId, editNicknameValue, editNicknamePublic } = this.state;
+    const convId = this.context.currentConversation?._id;
+    if (!convId || !editingTargetId) return;
+    this.setState({ savingNickname: true });
+    try {
+      const res = await api.setNickname(convId, editingTargetId, editNicknameValue, editNicknamePublic);
+      this.setState({
+        nicknames: res.data || [],
+        editingTargetId: null,
+        editNicknameValue: '',
+        editNicknamePublic: true,
+      });
+      // Refresh context so chat header/list update immediately
+      if (this.context.refreshCurrentNicknames) {
+        this.context.refreshCurrentNicknames();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally {
+      this.setState({ savingNickname: false });
+    }
+  };
+
+  renderNicknamePanel = () => {
+    const { nicknames, nicknameLoading, savingNickname, editingTargetId, editNicknameValue, editNicknamePublic } = this.state;
+    const { currentConversation } = this.context;
+    const currentUserId = localStorage.getItem('userId');
+    const participants = currentConversation?.participants || [];
+
+    const getDisplayEntryFor = (p) => {
+      const pId = p._id?.toString();
+      const mine = nicknames.find(n => {
+        const sid = (n.setter?._id || n.setter)?.toString();
+        const tid = (n.target?._id || n.target)?.toString();
+        return sid === currentUserId && tid === pId;
+      });
+      if (mine) return mine;
+      return nicknames.find(n => {
+        const tid = (n.target?._id || n.target)?.toString();
+        return n.isPublic && tid === pId;
+      });
+    };
+
+    return (
+      <div className="nickname-panel-overlay" onClick={this.handleCloseNicknamePanel}>
+        <div className="nickname-panel" onClick={e => e.stopPropagation()}>
+          <div className="nickname-panel-header">
+            <button className="nickname-back-btn" onClick={this.handleCloseNicknamePanel}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <h3>Biệt danh</h3>
+          </div>
+
+          {nicknameLoading ? (
+            <div className="nickname-loading">Đang tải...</div>
+          ) : (
+            <div className="nickname-list">
+              {participants.map(p => {
+                const pId = p._id?.toString();
+                const entry = getDisplayEntryFor(p);
+                const avatarUrl = this.getAvatarUrl(p);
+                const isEditing = editingTargetId === pId;
+                const originalName = p.fullName || p.username;
+                const displayName = entry ? entry.nickname : originalName;
+
+                return (
+                  <div key={pId} className="nickname-item">
+                    <div
+                      className="nickname-item-row"
+                      onClick={() => !isEditing && this.handleStartEditNickname(p)}
+                    >
+                      <img className="nickname-item-avatar" src={avatarUrl} alt={originalName} />
+                      <div className="nickname-item-names">
+                        <span className="nickname-item-display">{displayName}</span>
+                        {entry && displayName !== originalName && (
+                          <span className="nickname-item-original">{originalName}</span>
+                        )}
+                      </div>
+                      {!isEditing && (
+                        <div className="nickname-action-icons">
+                          {entry && (
+                            <svg
+                              className="nickname-delete-icon"
+                              width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                              onClick={e => { e.stopPropagation(); this.handleDeleteNickname(pId); }}
+                              title="Xóa biệt danh"
+                            >
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                              <path d="M10 11v6"/>
+                              <path d="M14 11v6"/>
+                              <path d="M9 6V4h6v2"/>
+                            </svg>
+                          )}
+                          <svg className="nickname-edit-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+
+                    {isEditing && (
+                      <div className="nickname-edit-form" onClick={e => e.stopPropagation()}>
+                        <input
+                          className="nickname-edit-input"
+                          value={editNicknameValue}
+                          onChange={e => this.setState({ editNicknameValue: e.target.value })}
+                          placeholder="Nhập biệt danh..."
+                          autoFocus
+                          onKeyDown={e => { if (e.key === 'Enter') this.handleSaveNickname(); if (e.key === 'Escape') this.handleCancelEditNickname(); }}
+                        />
+                        <label className="nickname-public-label">
+                          <input
+                            type="checkbox"
+                            checked={editNicknamePublic}
+                            onChange={e => this.setState({ editNicknamePublic: e.target.checked })}
+                          />
+                          <span>Công khai (cả hai đều thấy)</span>
+                        </label>
+                        <div className="nickname-edit-actions">
+                          <button className="nickname-cancel-btn" onClick={this.handleCancelEditNickname}>Hủy</button>
+                          <button className="nickname-save-btn" onClick={this.handleSaveNickname} disabled={savingNickname}>
+                            {savingNickname ? 'Đang lưu...' : 'Lưu'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   getParticipant = () => {
     const { currentConversation } = this.context;
     const currentUserId = localStorage.getItem('userId');
@@ -698,7 +906,7 @@ class ConversationInfo extends Component {
                   <path d="M17.5 17.5 23 23"/>
                   <circle cx="19" cy="19" r="3"/>
                 </svg>,
-                'Biệt danh'
+                'Biệt danh', false, this.handleOpenNicknamePanel
               )}
             </div>
           )}
@@ -716,7 +924,9 @@ class ConversationInfo extends Component {
                   <line x1="20" y1="8" x2="20" y2="14"/>
                   <line x1="23" y1="11" x2="17" y2="11"/>
                 </svg>,
-                `Tạo nhóm chat${participant ? ` với ${participant.fullName || participant.username}` : ''}`
+                `Tạo nhóm chat${participant ? ` với ${participant.fullName || participant.username}` : ''}`,
+                false,
+                this.handleCreateGroup
               )}
               {this.renderActionRow(
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -798,6 +1008,7 @@ class ConversationInfo extends Component {
 
       {showReportModal && this.renderReportModal()}
       {showThemePicker && this.renderThemePicker()}
+      {this.state.showNicknamePanel && this.renderNicknamePanel()}
       </>
     );
   }

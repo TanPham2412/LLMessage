@@ -40,6 +40,10 @@ class FriendRoutes {
     this.router.delete('/conversations/:conversationId', (req, res) => req.friendController.deleteConversation(req, res));
     this.router.post('/groups', (req, res) => req.friendController.createGroup(req, res));
 
+    // Nicknames
+    this.router.get('/conversations/:conversationId/nicknames', (req, res) => req.friendController.getNicknames(req, res));
+    this.router.put('/conversations/:conversationId/nickname', (req, res) => req.friendController.setNickname(req, res));
+
     // Block/Restrict
     this.router.post('/users/:userId/block', (req, res) => req.friendController.blockUser(req, res));
     this.router.delete('/users/:userId/block', (req, res) => req.friendController.unblockUser(req, res));

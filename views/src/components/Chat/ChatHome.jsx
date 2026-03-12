@@ -21,6 +21,7 @@ class ChatHome extends Component {
       showSidebar: true,
       showUserMenu: false,
       showCreateGroupModal: false,
+      createGroupPreSelected: [],
       showFriendsList: false,
       showNotifications: false,
       notificationTab: 'requests',
@@ -117,11 +118,15 @@ class ChatHome extends Component {
   };
 
   handleOpenCreateGroup = () => {
-    this.setState({ showCreateGroupModal: true, showUserMenu: false });
+    this.setState({ showCreateGroupModal: true, showUserMenu: false, createGroupPreSelected: [] });
+  };
+
+  handleOpenCreateGroupWithFriend = (friendId) => {
+    this.setState({ showCreateGroupModal: true, showUserMenu: false, createGroupPreSelected: [friendId] });
   };
 
   handleCloseCreateGroup = () => {
-    this.setState({ showCreateGroupModal: false });
+    this.setState({ showCreateGroupModal: false, createGroupPreSelected: [] });
   };
 
   handleOpenFriendsList = () => {
@@ -344,19 +349,22 @@ class ChatHome extends Component {
                       />
                     </div>
                   </div>
-                  <ConversationList searchQuery={this.state.searchQuery} />
+                  <ConversationList searchQuery={this.state.searchQuery} onCreateGroupWithFriend={this.handleOpenCreateGroupWithFriend} />
                 </div>
               )}
               
               <div className="main-chat">
-                <ChatWindow showInfoPanel={showInfoPanel} onToggleInfoPanel={this.handleToggleInfoPanel} />
+                <ChatWindow showInfoPanel={showInfoPanel} onToggleInfoPanel={this.handleToggleInfoPanel} onCreateGroupWithFriend={this.handleOpenCreateGroupWithFriend} />
               </div>
             </>
           )}
         </ChatContext.Consumer>
 
         {this.state.showCreateGroupModal && (
-          <CreateGroupModal onClose={this.handleCloseCreateGroup} />
+          <CreateGroupModal
+            onClose={this.handleCloseCreateGroup}
+            preSelectedIds={this.state.createGroupPreSelected}
+          />
         )}
 
         {this.state.showFriendsList && (

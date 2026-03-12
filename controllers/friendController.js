@@ -356,6 +356,7 @@ class FriendController {
             select: 'username fullName avatar'
           }
         })
+        .populate('nicknames.target', '_id')
         .sort({ lastMessageAt: -1 });
 
       // Filter: Only show conversations that were NOT deleted OR have new messages after deletion
@@ -418,6 +419,20 @@ class FriendController {
             convObj.lastMessage = null;
           }
         }
+
+        // Resolve the nickname this user sees for the other participant
+        // (last visible entry per target: public OR set by current user)
+        const nicknames = convObj.nicknames || [];
+        const seen = new Map();
+        for (const n of nicknames) {
+          const sid = (n.setter?._id || n.setter)?.toString();
+          const tid = (n.target?._id || n.target)?.toString();
+          if (n.isPublic || sid === userId.toString()) {
+            seen.set(tid, n.nickname);
+          }
+        }
+        convObj.resolvedNicknames = Object.fromEntries(seen); // { participantId: 'nickname' }
+        delete convObj.nicknames; // don't send raw array to client
         
         return convObj;
       });
@@ -517,38 +532,8 @@ class FriendController {
         });
       }
 
-      // Verify each member has at least one friend in the group
+      // Create group conversation (creator + all selected members)
       const allParticipants = [userId, ...members];
-      
-      // Get all users with their friends list
-      const users = await User.find({ _id: { $in: allParticipants } }).populate('friends');
-      const userFriendsMap = {};
-      
-      users.forEach(user => {
-        userFriendsMap[user._id.toString()] = user.friends.map(f => f._id.toString());
-      });
-
-      // Check if each participant has at least one friend in the group
-      const invalidMembers = [];
-      for (const participantId of allParticipants) {
-        const friendIds = userFriendsMap[participantId] || [];
-        const hasFriendInGroup = allParticipants.some(otherId => 
-          otherId !== participantId && friendIds.includes(otherId)
-        );
-        
-        if (!hasFriendInGroup) {
-          invalidMembers.push(participantId);
-        }
-      }
-
-      if (invalidMembers.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Each member must have at least one friend in the group'
-        });
-      }
-
-      // Create group conversation (creator + members)
       const participants = allParticipants;
       
       const conversation = await Conversation.create({
@@ -878,6 +863,149 @@ class FriendController {
         message: 'Failed to get restricted users',
         error: error.message
       });
+    }
+  }
+
+  // Get nicknames for a conversation (returns only what current user can see)
+  async getNicknames(req, res) {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user.id.toString();
+
+      const conversation = await Conversation.findById(conversationId)
+        .populate('nicknames.setter', 'username fullName avatar')
+        .populate('nicknames.target', 'username fullName avatar');
+
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+      if (!conversation.hasParticipant(userId)) {
+        return res.status(403).json({ success: false, message: 'Not a participant' });
+      }
+
+      // Keep only visible entries, then deduplicate: for each (setter,target) keep the last one
+      const seen = new Map();
+      // Iterate in order so later entries overwrite — giving us the latest
+      for (const n of conversation.nicknames) {
+        const sid = (n.setter?._id || n.setter)?.toString();
+        const tid = (n.target?._id || n.target)?.toString();
+        const key = `${sid}:${tid}`;
+        if (n.isPublic || sid === userId) {
+          seen.set(key, n);
+        }
+      }
+
+      res.json({ success: true, data: Array.from(seen.values()) });
+    } catch (error) {
+      console.error('Get nicknames error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get nicknames', error: error.message });
+    }
+  }
+
+  // Set or update a nickname for a participant in a conversation
+  async setNickname(req, res) {
+    try {
+      const { conversationId } = req.params;
+      const { targetId, nickname, isPublic } = req.body;
+      const userId = req.user.id.toString(); // ensure string
+
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ success: false, message: 'Conversation not found' });
+      }
+      if (!conversation.hasParticipant(userId)) {
+        return res.status(403).json({ success: false, message: 'Not a participant' });
+      }
+      if (!conversation.hasParticipant(targetId)) {
+        return res.status(400).json({ success: false, message: 'Target is not a participant' });
+      }
+
+      const trimmedNickname = nickname?.trim() || '';
+
+      console.log('[setNickname] userId:', userId, 'targetId:', targetId, 'nickname:', trimmedNickname, 'entries before filter:', conversation.nicknames.length);
+      conversation.nicknames.forEach(n => {
+        const sid = (n.setter?._id || n.setter)?.toString();
+        const tid = (n.target?._id || n.target)?.toString();
+        console.log(`  entry: setter=${sid} target=${tid} nick="${n.nickname}" public=${n.isPublic}`);
+      });
+
+      // On delete (empty nickname): remove all visible entries for that target
+      // On set: only replace the entry the current user is setting
+      conversation.nicknames = conversation.nicknames.filter(n => {
+        const sid = (n.setter?._id || n.setter)?.toString();
+        const tid = (n.target?._id || n.target)?.toString();
+        if (tid !== targetId.toString()) return true; // different target – keep
+        if (!trimmedNickname) {
+          // Delete operation: remove any entry visible to current user for this target
+          const isVisible = n.isPublic || sid === userId || tid === userId;
+          console.log(`  [delete] sid=${sid} tid=${tid} isVisible=${isVisible} → keep=${!isVisible}`);
+          return !isVisible;
+        }
+        // Set operation: only remove the entry the current user is setting
+        return !(sid === userId);
+      });
+
+      // Push new entry only if nickname is non-empty
+      if (trimmedNickname) {
+        conversation.nicknames.push({ setter: userId, target: targetId, nickname: trimmedNickname, isPublic: !!isPublic });
+      }
+
+      await conversation.save();
+
+      // If public and nickname was set, create a system message
+      if (isPublic && trimmedNickname) {
+        const Message = require('../models/Message');
+        const User = require('../models/User');
+
+        const [setter, target] = await Promise.all([
+          User.findById(userId).select('fullName username'),
+          User.findById(targetId).select('fullName username')
+        ]);
+
+        const setterName = setter?.fullName || setter?.username || 'Ai đó';
+        const targetName = target?.fullName || target?.username || 'ai đó';
+
+        // Store structured payload so frontend can render personalized text
+        const payload = JSON.stringify({
+          setterId: userId.toString(),
+          setterName,
+          targetId: targetId.toString(),
+          targetName,
+          nickname: trimmedNickname
+        });
+        const content = `__NICKNAME_SET__|${payload}`;
+
+        const sysMsg = await Message.create({
+          conversation: conversationId,
+          sender: userId,
+          content,
+          type: 'system'
+        });
+        await sysMsg.populate('sender', 'username fullName avatar');
+        await Conversation.findByIdAndUpdate(conversationId, {
+          lastMessage: sysMsg._id,
+          lastMessageAt: new Date()
+        });
+
+        if (this.socketHandler?.io) {
+          this.socketHandler.io.to(`conversation:${conversationId}`).emit('receive-message', sysMsg.toObject());
+        }
+      }
+
+      // Return updated visible nicknames (deduplicated - latest per setter+target)
+      const updated = await Conversation.findById(conversationId)
+        .populate('nicknames.setter', 'username fullName avatar')
+        .populate('nicknames.target', 'username fullName avatar');
+
+      const visibleNicknames = updated.nicknames.filter(n => {
+        const setterId = (n.setter?._id || n.setter)?.toString();
+        return n.isPublic || setterId === userId;
+      });
+
+      res.json({ success: true, data: visibleNicknames });
+    } catch (error) {
+      console.error('Set nickname error:', error);
+      res.status(500).json({ success: false, message: 'Failed to set nickname', error: error.message });
     }
   }
 
