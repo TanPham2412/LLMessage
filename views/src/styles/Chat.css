@@ -775,7 +775,6 @@
   max-width: 75%;
   text-align: center;
   pointer-events: none;
-  user-select: none;
   animation: notifFadeIn 0.3s ease;
 }
 
@@ -815,6 +814,34 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Group chat: sender name + avatar above received bubble */
+.message-sender-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding-left: 2px;
+}
+
+.message-sender-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  flex-shrink: 0;
+}
+
+.message-sender-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a78bfa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
 }
 
 .message-sent {

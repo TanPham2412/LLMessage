@@ -42,6 +42,12 @@ class ConversationList extends Component {
     // Nếu là private, hiển thị tên người kia
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
     const otherParticipant = conversation.participants?.find(p => p._id !== currentUserId);
+    if (!otherParticipant) return 'Unknown';
+
+    // Kiểm tra biệt danh từ resolvedNicknames (có trong mọi cuộc trò chuyện)
+    const nickname = conversation.resolvedNicknames?.[otherParticipant._id?.toString()];
+    if (nickname) return nickname;
+
     return otherParticipant?.fullName || otherParticipant?.username || 'Unknown';
   };
 
@@ -116,10 +122,13 @@ class ConversationList extends Component {
           await this.context.loadConversations();
           break;
 
-        case 'createGroup':
-          // TODO: Open create group modal with this person selected
-          alert('Chức năng tạo nhóm chat đang được phát triển');
+        case 'createGroup': {
+          const friendParticipant = this.getParticipant(conversation);
+          if (friendParticipant && this.props.onCreateGroupWithFriend) {
+            this.props.onCreateGroupWithFriend(friendParticipant._id);
+          }
           break;
+        }
 
         case 'restrict':
           const participant = this.getParticipant(conversation);
@@ -260,6 +269,21 @@ class ConversationList extends Component {
     const isOwnMessage = senderId === currentUserId;
     const prefix = isOwnMessage ? 'Bạn: ' : '';
     
+    // Tin nhắn hệ thống
+    if (lastMessage.type === 'system') {
+      const content = lastMessage.content || '';
+      if (content.startsWith('__NICKNAME_SET__|')) {
+        try {
+          const data = JSON.parse(content.slice('__NICKNAME_SET__|'.length));
+          const curId = currentUserId?.toString();
+          if (curId === data.setterId) return `Bạn đã đặt biệt danh cho ${data.targetName} là: ${data.nickname}`;
+          if (curId === data.targetId) return `${data.setterName} đã đặt biệt danh cho bạn là: ${data.nickname}`;
+          return `${data.setterName} đã đặt biệt danh cho ${data.targetName} là: ${data.nickname}`;
+        } catch { /* fall through */ }
+      }
+      return content;
+    }
+
     // Hiển thị content dựa trên type
     if (lastMessage.type === 'image') {
       return `${prefix}📷 Hình ảnh`;

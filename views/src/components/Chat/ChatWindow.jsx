@@ -238,8 +238,26 @@ class ChatWindow extends Component {
     }
   };
 
+  parseSystemMessage = (content, currentUserId) => {
+    if (content?.startsWith('__NICKNAME_SET__|')) {
+      try {
+        const data = JSON.parse(content.slice('__NICKNAME_SET__|'.length));
+        const curId = currentUserId?.toString();
+        if (curId === data.setterId) {
+          return `Bạn đã đặt biệt danh cho ${data.targetName} là: ${data.nickname}`;
+        } else if (curId === data.targetId) {
+          return `${data.setterName} đã đặt biệt danh cho bạn là: ${data.nickname}`;
+        }
+        return `${data.setterName} đã đặt biệt danh cho ${data.targetName} là: ${data.nickname}`;
+      } catch {
+        return content;
+      }
+    }
+    return content;
+  };
+
   getConversationName = () => {
-    const { currentConversation } = this.context;
+    const { currentConversation, currentConversationNicknames } = this.context;
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
     
     // Nếu là group, hiển thị tên nhóm
@@ -249,6 +267,22 @@ class ChatWindow extends Component {
     
     // Nếu là private, hiển thị tên người kia
     const participant = currentConversation.participants?.find(p => p._id !== currentUserId);
+    if (!participant) return 'Chat';
+
+    // 1) resolvedNicknames có sẵn trong conversation object (từ API list)
+    const fromConv = currentConversation.resolvedNicknames?.[participant._id?.toString()];
+    if (fromConv) return fromConv;
+
+    // 2) Fallback: nick từ context (load sau khi select)
+    if (currentConversationNicknames?.length) {
+      const pId = participant._id?.toString();
+      const nick = currentConversationNicknames.find(n => {
+        const tid = (n.target?._id || n.target)?.toString();
+        return tid === pId;
+      });
+      if (nick) return nick.nickname;
+    }
+
     return participant?.fullName || participant?.username || 'Chat';
   };
 
@@ -706,13 +740,14 @@ class ChatWindow extends Component {
           {messages.map((msg) => {
             // Tin nhắn hệ thống (ví dụ: thông báo đổi chủ đề)
             if (msg.type === 'system') {
+              const displayText = this.parseSystemMessage(msg.content, currentUserId);
               return (
                 <div key={msg._id} className="message-system">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,opacity:0.75}}>
                     <circle cx="12" cy="12" r="10"/>
                     <polyline points="12 6 12 12 16 14"/>
                   </svg>
-                  <span className="message-system-content">{msg.content}</span>
+                  <span className="message-system-content">{displayText}</span>
                   <span className="message-system-time">{this.formatTime(msg.createdAt)}</span>
                 </div>
               );
@@ -724,6 +759,23 @@ class ChatWindow extends Component {
                 msg.sender._id === currentUserId ? 'message-sent' : 'message-received'
               } ${msg.isBlocked ? 'message-blocked' : ''}`}
             >
+              {/* Avatar + tên người gửi trong nhóm (chỉ tin nhắn nhận được) */}
+              {currentConversation.type === 'group' && msg.sender._id !== currentUserId && (
+                <div className="message-sender-info">
+                  <img
+                    className="message-sender-avatar"
+                    src={
+                      msg.sender.avatar && msg.sender.avatar.startsWith('http')
+                        ? msg.sender.avatar
+                        : msg.sender.avatar
+                        ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${msg.sender.avatar}`
+                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender.fullName || msg.sender.username || 'U')}&size=60&background=8b5cf6&color=fff`
+                    }
+                    alt={msg.sender.fullName || msg.sender.username}
+                  />
+                  <span className="message-sender-name">{msg.sender.fullName || msg.sender.username}</span>
+                </div>
+              )}
               <div className="message-content">
                 {msg.isBlocked && (
                   <div className="message-blocked-warning">
@@ -814,6 +866,7 @@ class ChatWindow extends Component {
           onClose={this.props.onToggleInfoPanel}
           onThemeChange={this.handleThemeChange}
           currentTheme={chatTheme}
+          onCreateGroupWithFriend={this.props.onCreateGroupWithFriend}
         />
       )}
       </div>

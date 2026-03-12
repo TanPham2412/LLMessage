@@ -24,7 +24,8 @@ export class ChatProvider extends Component {
       conversationDeletedAt: null, // Track deletion timestamp for current conversation
       blockedUsers: [], // Shared blocked users list
       restrictedUsers: [], // Shared restricted users list
-      incomingTheme: null // Theme được nhận từ socket (người kia thay đổi chủ đề)
+      incomingTheme: null, // Theme được nhận từ socket (người kia thay đổi chủ đề)
+      currentConversationNicknames: [], // Biệt danh cho cuộc trò chuyện hiện tại
     };
 
     // Flag để prevent duplicate setup
@@ -358,7 +359,8 @@ export class ChatProvider extends Component {
       this.setState({ 
         currentConversation: conversation,
         messages: [], // Clear messages cũ ngay lập tức
-        conversationDeletedAt: null // Clear deletion timestamp
+        conversationDeletedAt: null, // Clear deletion timestamp
+        currentConversationNicknames: [], // Clear nicknames cũ
       });
 
       // If conversation is null (cleared/deleted), just return
@@ -385,6 +387,9 @@ export class ChatProvider extends Component {
         this.setState({ messages: response.data });
       }
 
+      // Load nicknames in background (non-blocking)
+      this.loadCurrentNicknames(conversation._id);
+
       const { socketService } = this.context;
       if (socketService && socketService.joinConversation) {
         socketService.joinConversation(conversation._id);
@@ -392,6 +397,42 @@ export class ChatProvider extends Component {
     } catch (error) {
       console.error('Select conversation error:', error);
       this.setState({ error: error.message });
+    }
+  };
+
+  loadCurrentNicknames = async (conversationId) => {
+    if (!conversationId) return;
+    try {
+      const res = await api.getNicknames(conversationId);
+      const nicknames = res.data || [];
+      // Build resolvedNicknames map and patch currentConversation so header updates immediately
+      const currentUserId = localStorage.getItem('userId');
+      const seen = new Map();
+      for (const n of nicknames) {
+        const tid = (n.target?._id || n.target)?.toString();
+        seen.set(tid, n.nickname);
+      }
+      this.setState(prev => ({
+        currentConversationNicknames: nicknames,
+        currentConversation: prev.currentConversation?._id?.toString() === conversationId
+          ? { ...prev.currentConversation, resolvedNicknames: Object.fromEntries(seen) }
+          : prev.currentConversation,
+        // Also patch the conversation in the list so ConversationList updates
+        conversations: prev.conversations.map(c =>
+          c._id?.toString() === conversationId
+            ? { ...c, resolvedNicknames: Object.fromEntries(seen) }
+            : c
+        )
+      }));
+    } catch {
+      // silently fail – nicknames are non-critical
+    }
+  };
+
+  refreshCurrentNicknames = () => {
+    const { currentConversation } = this.state;
+    if (currentConversation?._id) {
+      this.loadCurrentNicknames(currentConversation._id);
     }
   };
 
@@ -644,7 +685,8 @@ export class ChatProvider extends Component {
       sendFriendRequest: this.sendFriendRequest,
       acceptFriendRequest: this.acceptFriendRequest,
       rejectFriendRequest: this.rejectFriendRequest,
-      socketService: this.context?.socketService
+      socketService: this.context?.socketService,
+      refreshCurrentNicknames: this.refreshCurrentNicknames,
     };
 
     return (

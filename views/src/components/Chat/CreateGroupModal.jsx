@@ -8,9 +8,10 @@ class CreateGroupModal extends Component {
 
   constructor(props) {
     super(props);
+    const preSelected = new Set(props.preSelectedIds || []);
     this.state = {
       groupName: '',
-      selectedFriends: new Set(),
+      selectedFriends: preSelected,
       searchQuery: '',
       loading: false,
       error: null,
@@ -111,6 +112,7 @@ class CreateGroupModal extends Component {
 
   render() {
     const { groupName, selectedFriends, searchQuery, loading, error, successMessage } = this.state;
+    const { friends } = this.context;
     const filteredFriends = this.getFilteredFriends();
 
     return (
@@ -164,7 +166,7 @@ class CreateGroupModal extends Component {
                   Đã chọn {selectedFriends.size} thành viên
                 </div>
                 <div className="selected-members-chips">
-                  {filteredFriends
+                  {(friends || [])
                     .filter(friend => selectedFriends.has(friend._id))
                     .map(friend => (
                       <div key={friend._id} className="member-chip">

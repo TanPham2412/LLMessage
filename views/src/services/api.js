@@ -223,6 +223,16 @@ class APIService {
     return response.data;
   }
 
+  async getNicknames(conversationId) {
+    const response = await this.client.get(`/friends/conversations/${conversationId}/nicknames`);
+    return response.data;
+  }
+
+  async setNickname(conversationId, targetId, nickname, isPublic) {
+    const response = await this.client.put(`/friends/conversations/${conversationId}/nickname`, { targetId, nickname, isPublic });
+    return response.data;
+  }
+
   async reportUser(reportedUserId, reason, description = '') {
     const response = await this.client.post('/notifications/report', { reportedUserId, reason, description });
     return response.data;

@@ -51,6 +51,12 @@ class ConversationModel {
           type: Date,
           default: Date.now
         }
+      }],
+      nicknames: [{
+        setter: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        target: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        nickname: { type: String, trim: true },
+        isPublic: { type: Boolean, default: true }
       }]
     }, {
       timestamps: true
