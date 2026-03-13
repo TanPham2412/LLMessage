@@ -19,6 +19,7 @@ class ChatWindow extends Component {
       prevMessagesLength: 0,
       prevConversationId: null,
       chatTheme: null,
+      dragOver: false,
       // showInfoPanel is now managed by parent ChatHome via props
     };
 
@@ -150,7 +151,43 @@ class ChatWindow extends Component {
   };
 
   handleFileSelect = (e) => {
-    this.setState({ selectedFile: e.target.files[0] });
+    const file = e.target.files[0];
+    if (file) {
+      this.setState({ selectedFile: file });
+    }
+  };
+
+  handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({ dragOver: true });
+  };
+
+  handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragOver to false if we're leaving the form itself
+    if (e.target.closest('.chat-input-form') === e.currentTarget) {
+      this.setState({ dragOver: false });
+    }
+  };
+
+  handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({ dragOver: false });
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Validate file size (optional, e.g., max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert('File size exceeds 10MB limit');
+        return;
+      }
+      this.setState({ selectedFile: file });
+    }
   };
 
   handleSendMessage = async (e) => {
@@ -799,7 +836,7 @@ class ChatWindow extends Component {
                 {msg.content && !msg.isBlocked && <p>{msg.content}</p>}
                 {msg.type === 'file' && msg.fileName && !msg.isBlocked && (
                   <a href={`http://localhost:5000${msg.fileUrl}`} download>
-                    📎 {msg.fileName}
+                    {msg.fileName}
                   </a>
                 )}
               </div>
@@ -810,7 +847,13 @@ class ChatWindow extends Component {
           <div ref={this.messagesEndRef} />
         </div>
 
-        <form className="chat-input-form" onSubmit={this.handleSendMessage}>
+        <form 
+          className={`chat-input-form ${this.state.dragOver ? 'drag-over' : ''}`}
+          onSubmit={this.handleSendMessage}
+          onDragOver={this.handleDragOver}
+          onDragLeave={this.handleDragLeave}
+          onDrop={this.handleDrop}
+        >
           {selectedFile && (
             <div className="selected-file">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:'4px'}}>
@@ -834,6 +877,7 @@ class ChatWindow extends Component {
               type="file"
               id="file-upload"
               onChange={this.handleFileSelect}
+              accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xlsx,.xls,.ppt,.pptx,.rar,.7z,.mp3,.mp4,.mov,.avi,.csv"
               style={{ display: 'none' }}
             />
             <label htmlFor="file-upload" className="btn-file" title="Đính kèm file">
