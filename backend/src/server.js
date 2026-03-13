@@ -76,22 +76,14 @@ class AppServer {
       res.json({ status: 'OK', message: 'Server is running' });
     });
 
-<<<<<<< HEAD:server.js
-    // Phục vụ React build (View layer) - chỉ trong production
-    if (process.env.NODE_ENV === 'production') {
-      const buildPath = path.join(__dirname, 'views', 'build');
-      this.app.use(express.static(buildPath));
-=======
     // Phục vụ React build (View layer) trong production
     const buildPath = path.join(__dirname, '../../views/build');
     this.app.use(express.static(buildPath));
->>>>>>> 969c6a27ed0074f9917e39067071d100efd94a4a:backend/src/server.js
 
-      // SPA fallback: mọi route không phải API → trả về index.html
-      this.app.get('*', (req, res) => {
-        res.sendFile(path.join(buildPath, 'index.html'));
-      });
-    }
+    // SPA fallback: mọi route không phải API → trả về index.html
+    this.app.get('*', (req, res) => {
+      res.sendFile(path.join(buildPath, 'index.html'));
+    });
   }
 
   initializeSocket() {
