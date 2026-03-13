@@ -7,8 +7,8 @@ const { Server } = require('socket.io');
 const DatabaseConfig = require('./config/db');
 const SocketHandler = require('./config/socket');
 
-// Tải biến môi trường
-dotenv.config();
+// Tải biến môi trường (backend/.env, một cấp trên src/)
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 class AppServer {
   constructor() {
@@ -40,8 +40,8 @@ class AppServer {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    // Cấu hình static files cho uploads
-    this.app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+    // Cấu hình static files cho uploads (backend/uploads/)
+    this.app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
   }
 
   initializeRoutes() {
@@ -77,7 +77,7 @@ class AppServer {
     });
 
     // Phục vụ React build (View layer) trong production
-    const buildPath = path.join(__dirname, 'views', 'build');
+    const buildPath = path.join(__dirname, '../../views/build');
     this.app.use(express.static(buildPath));
 
     // SPA fallback: mọi route không phải API → trả về index.html
