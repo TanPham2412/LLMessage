@@ -597,6 +597,7 @@
   height: 100%;
   width: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-window-with-info .chat-window {
@@ -878,11 +879,55 @@
 }
 
 .message-image {
-  max-width: 100%;
+  max-width: 280px;
+  max-height: 280px;
+  width: auto;
+  height: auto;
+  object-fit: cover;
   border-radius: 12px;
   margin-bottom: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: zoom-in;
+  display: block;
 }
+
+/* Lightbox overlay */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+.lightbox-overlay img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+}
+.lightbox-close {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  background: rgba(255,255,255,0.12);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  font-size: 22px;
+  transition: background 0.2s;
+}
+.lightbox-close:hover { background: rgba(255,255,255,0.25); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .message-content a {
   color: inherit;
@@ -949,6 +994,31 @@
   border-top: 2px solid #8b5cf6;
   box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.2);
 }
+
+/* Full-window drop overlay */
+.chat-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(10, 14, 39, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed #8b5cf6;
+  border-radius: 0;
+  pointer-events: all;
+  cursor: copy;
+}
+.chat-drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #a78bfa;
+  font-size: 18px;
+  font-weight: 600;
+}
+.chat-drop-overlay-inner svg { stroke: #a78bfa; }
 
 .selected-file {
   background: rgba(167, 139, 250, 0.1);
