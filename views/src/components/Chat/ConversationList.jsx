@@ -269,6 +269,11 @@ class ConversationList extends Component {
     const isOwnMessage = senderId === currentUserId;
     const prefix = isOwnMessage ? 'Bạn: ' : '';
     
+    // Kiểm tra tin nhắn đã bị xóa
+    if (lastMessage.isDeleted) {
+      return `${prefix}Tin nhắn đã được xóa`;
+    }
+    
     // Tin nhắn hệ thống
     if (lastMessage.type === 'system') {
       const content = lastMessage.content || '';

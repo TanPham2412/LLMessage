@@ -279,6 +279,11 @@ class APIService {
     return response.data;
   }
 
+  async editMessage(messageId, content) {
+    const response = await this.client.put(`/messages/${messageId}`, { content });
+    return response.data;
+  }
+
   async deleteMessage(messageId) {
     const response = await this.client.delete(`/messages/${messageId}`);
     return response.data;

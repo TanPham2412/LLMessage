@@ -3,6 +3,8 @@ import { ChatContext } from '../../context/ChatContext.jsx';
 import { getTimeAgo } from '../../utils/timeUtils';
 import api from '../../services/api.js';
 import ConversationInfo, { THEMES } from './ConversationInfo.jsx';
+import MessageActions from './MessageActions.jsx';
+import EditMessageModal from './EditMessageModal.jsx';
 
 class ChatWindow extends Component {
   static contextType = ChatContext;
@@ -20,6 +22,7 @@ class ChatWindow extends Component {
       prevConversationId: null,
       chatTheme: null,
       dragOver: false,
+      editingMessage: null,
       // showInfoPanel is now managed by parent ChatHome via props
     };
 
@@ -204,6 +207,35 @@ class ChatWindow extends Component {
     );
 
     this.setState({ message: '', selectedFile: null });
+  };
+
+  handleEditMessage = (message) => {
+    this.setState({ editingMessage: message });
+  };
+
+  handleSaveEdit = async (messageId, newContent) => {
+    try {
+      const response = await api.editMessage(messageId, newContent);
+      if (response.success) {
+        // Socket event will auto-update messages, just close modal
+        this.setState({ editingMessage: null });
+      }
+    } catch (error) {
+      console.error('Edit message error:', error);
+      throw error;
+    }
+  };
+
+  handleDeleteMessage = async (messageId) => {
+    try {
+      const response = await api.deleteMessage(messageId);
+      if (response.success) {
+        // Socket event will auto-update messages
+      }
+    } catch (error) {
+      console.error('Delete message error:', error);
+      alert('Lỗi khi xóa tin nhắn: ' + (error.response?.data?.message || error.message));
+    }
   };
 
   formatTime = (date) => {
@@ -794,7 +826,7 @@ class ChatWindow extends Component {
               key={msg._id}
               className={`message ${
                 msg.sender._id === currentUserId ? 'message-sent' : 'message-received'
-              } ${msg.isBlocked ? 'message-blocked' : ''}`}
+              } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''}`}
             >
               {/* Avatar + tên người gửi trong nhóm (chỉ tin nhắn nhận được) */}
               {currentConversation.type === 'group' && msg.sender._id !== currentUserId && (
@@ -814,7 +846,9 @@ class ChatWindow extends Component {
                 </div>
               )}
               <div className="message-content">
-                {msg.isBlocked && (
+                {msg.isDeleted ? (
+                  <p className="message-text-deleted">Tin nhắn đã được xóa</p>
+                ) : msg.isBlocked ? (
                   <div className="message-blocked-warning">
                     <span className="blocked-icon">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -825,22 +859,34 @@ class ChatWindow extends Component {
                     </span>
                     <span className="blocked-text">{msg.blockedMessage || 'Tin nhắn không được gửi'}</span>
                   </div>
-                )}
-                {msg.type === 'image' && !msg.isBlocked && (
-                  <img
-                    src={`http://localhost:5000${msg.fileUrl}`}
-                    alt="attachment"
-                    className="message-image"
-                  />
-                )}
-                {msg.content && !msg.isBlocked && <p>{msg.content}</p>}
-                {msg.type === 'file' && msg.fileName && !msg.isBlocked && (
-                  <a href={`http://localhost:5000${msg.fileUrl}`} download>
-                    {msg.fileName}
-                  </a>
+                ) : (
+                  <>
+                    {msg.type === 'image' && (
+                      <img
+                        src={`http://localhost:5000${msg.fileUrl}`}
+                        alt="attachment"
+                        className="message-image"
+                      />
+                    )}
+                    {msg.content && <p>{msg.content}</p>}
+                    {msg.type === 'file' && msg.fileName && (
+                      <a href={`http://localhost:5000${msg.fileUrl}`} download>
+                        📎 {msg.fileName}
+                      </a>
+                    )}
+                  </>
                 )}
               </div>
-              <div className="message-time">{this.formatTime(msg.createdAt)}</div>
+              <div className="message-time">
+                {msg.isEdited && <span className="edited-indicator" title="Đã chỉnh sửa">chỉnh sửa</span>}
+                {this.formatTime(msg.createdAt)}
+              </div>
+              <MessageActions
+                message={msg}
+                currentUserId={currentUserId}
+                onEdit={this.handleEditMessage}
+                onDelete={this.handleDeleteMessage}
+              />
             </div>
             );
           })}
@@ -903,6 +949,15 @@ class ChatWindow extends Component {
           </div>
         </form>
       </div>
+
+      {/* Edit Message Modal */}
+      {this.state.editingMessage && (
+        <EditMessageModal
+          message={this.state.editingMessage}
+          onSave={this.handleSaveEdit}
+          onCancel={() => this.setState({ editingMessage: null })}
+        />
+      )}
 
       {/* Conversation Info Panel */}
       {showInfoPanel && (

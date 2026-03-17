@@ -3,6 +3,18 @@ const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 
 class MessageController {
+  constructor(socketHandler = null) {
+    this.socketHandler = socketHandler;
+  }
+
+  setSocketHandler(socketHandler) {
+    this.socketHandler = socketHandler;
+  }
+
+  getIO() {
+    return this.socketHandler?.io;
+  }
+
   async sendMessage(req, res) {
     try {
       const { conversationId, content, type = 'text' } = req.body;
@@ -120,8 +132,7 @@ class MessageController {
       });
       
       const query = {
-        conversation: conversationId,
-        isDeleted: false
+        conversation: conversationId
       };
       
       // If user deleted conversation, only show messages after deletedAt timestamp
@@ -211,6 +222,87 @@ class MessageController {
     }
   }
 
+  async editMessage(req, res) {
+    try {
+      const { messageId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.id;
+
+      if (!content || !content.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Content cannot be empty'
+        });
+      }
+
+      const message = await Message.findById(messageId);
+      if (!message) {
+        return res.status(404).json({
+          success: false,
+          message: 'Message not found'
+        });
+      }
+
+      // Chỉ người gửi mới có thể sửa
+      if (message.sender.toString() !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only edit your own messages'
+        });
+      }
+
+      // Chỉ có thể sửa text messages
+      if (message.type !== 'text') {
+        return res.status(400).json({
+          success: false,
+          message: 'Only text messages can be edited'
+        });
+      }
+
+      // Chỉ có thể sửa trong 15 phút
+      const messageAge = Date.now() - message.createdAt.getTime();
+      const fifteenMinutes = 15 * 60 * 1000;
+      if (messageAge > fifteenMinutes) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot edit message older than 15 minutes'
+        });
+      }
+
+      message.content = content.trim();
+      message.editedAt = Date.now();
+      message.isEdited = true;
+      await message.save();
+
+      await message.populate('sender', 'username fullName avatar');
+
+      // Emit socket event for real-time update
+      const io = this.getIO();
+      if (io && message.conversation) {
+        io.to(`conversation:${message.conversation}`).emit('message-edited', {
+          _id: message._id,
+          conversation: message.conversation,
+          content: message.content,
+          editedAt: message.editedAt,
+          isEdited: message.isEdited
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Message edited successfully',
+        data: message
+      });
+    } catch (error) {
+      console.error('Edit message error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to edit message',
+        error: error.message
+      });
+    }
+  }
+
   async deleteMessage(req, res) {
     try {
       const { messageId } = req.params;
@@ -235,6 +327,17 @@ class MessageController {
       message.isDeleted = true;
       message.deletedAt = Date.now();
       await message.save();
+
+      // Emit socket event for real-time update
+      const io = this.getIO();
+      if (io && message.conversation) {
+        io.to(`conversation:${message.conversation}`).emit('message-deleted', {
+          _id: message._id,
+          conversation: message.conversation,
+          isDeleted: message.isDeleted,
+          deletedAt: message.deletedAt
+        });
+      }
 
       res.json({
         success: true,

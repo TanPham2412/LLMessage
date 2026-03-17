@@ -20,11 +20,14 @@ class MessageRoutes {
       messageController.sendMessage.bind(messageController)
     );
 
-    // Get messages for a conversation
+    // Get messages for a conversation - MUST be before /:messageId routes
     this.router.get('/conversation/:conversationId', messageController.getMessages.bind(messageController));
 
-    // Mark message as read
+    // Mark message as read - MUST be before generic /:messageId
     this.router.put('/:messageId/read', messageController.markAsRead.bind(messageController));
+
+    // Edit message
+    this.router.put('/:messageId', messageController.editMessage.bind(messageController));
 
     // Delete message
     this.router.delete('/:messageId', messageController.deleteMessage.bind(messageController));

@@ -62,6 +62,14 @@ class MessageModel {
       blockedMessage: {
         type: String,
         default: ''
+      },
+      editedAt: {
+        type: Date,
+        default: null
+      },
+      isEdited: {
+        type: Boolean,
+        default: false
       }
     }, {
       timestamps: true

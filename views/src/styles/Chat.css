@@ -803,6 +803,19 @@
   animation: messageSlide 0.3s ease-out;
   position: relative;
   z-index: 1;
+  user-select: text;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  margin-left: 50px;
+}
+
+.message.message-received {
+  margin-left: 50px;
+}
+
+.message:hover {
+  background: rgba(139, 92, 246, 0.05);
 }
 
 @keyframes messageSlide {
@@ -934,6 +947,29 @@
   font-size: 12px;
   color: #fca5a5;
   font-style: italic;
+}
+
+/* Deleted Message Styles */
+.message-deleted .message-content {
+  opacity: 0.5;
+}
+
+.message-text-deleted {
+  font-size: 13px;
+  color: #ffffff;
+  font-style: italic;
+  margin: 0;
+}
+
+.edited-indicator {
+  display: inline-block;
+  font-size: 10px;
+  color: #64748b;
+  margin-right: 6px;
+  padding: 2px 4px;
+  background: rgba(100, 116, 139, 0.1);
+  border-radius: 4px;
+  opacity: 0.7;
 }
 
 /* Chat Input */
