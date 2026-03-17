@@ -23,9 +23,11 @@ class ChatWindow extends Component {
       chatTheme: null,
       dragOver: false,
       editingMessage: null,
+      lightboxUrl: null, // URL of image shown in fullscreen lightbox
       // showInfoPanel is now managed by parent ChatHome via props
     };
 
+    this.dragCounter = 0;
     this.messagesEndRef = React.createRef();
     this.messagesContainerRef = React.createRef();
     this.timeUpdateInterval = null;
@@ -33,10 +35,56 @@ class ChatWindow extends Component {
   }
 
   componentDidMount() {
+    // Dùng capture phase trên document để chặn browser mở file TRƯỚC khi browser xử lý
+    this._docDragEnter = (e) => {
+      const types = e.dataTransfer && e.dataTransfer.types ? Array.from(e.dataTransfer.types) : [];
+      const hasDraggable = types.includes('Files') || types.includes('text/uri-list') || types.length > 0;
+      if (hasDraggable) {
+        e.preventDefault();
+        this.dragCounter++;
+        if (this.dragCounter === 1) this.setState({ dragOver: true });
+      }
+    };
+    this._docDragOver = (e) => {
+      // Luôn preventDefault để ngăn browser mở file/URL trong tab mới
+      // bất kể loại dữ liệu (Files, text/uri-list từ Edge downloads panel, v.v.)
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    };
+    this._docDragLeave = (e) => {
+      // relatedTarget === null nghĩa là cursor rời khỏi cửa sổ browser
+      if (!e.relatedTarget) {
+        this.dragCounter = 0;
+        this.setState({ dragOver: false });
+      }
+    };
+    this._docDrop = async (e) => {
+      e.preventDefault();
+      this.dragCounter = 0;
+      this.setState({ dragOver: false });
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+          alert('File quá lớn (tối đa 10MB)');
+          return;
+        }
+        const { currentConversation } = this.context;
+        if (currentConversation) {
+          await this.context.sendMessage('', 'file', file);
+        }
+      }
+    };
+    document.addEventListener('dragenter', this._docDragEnter, true);
+    document.addEventListener('dragover',  this._docDragOver,  true);
+    document.addEventListener('dragleave', this._docDragLeave, true);
+    document.addEventListener('drop',      this._docDrop,      true);
+
     // Cập nhật thời gian mỗi 10 giây cho trạng thái real-time
     this.timeUpdateInterval = setInterval(() => {
       this.setState({ currentTime: Date.now() });
-    }, 10000); // Cập nhật mỗi 10 giây
+    }, 10000);
     
     // Initialize conversation tracking
     const { currentConversation, messages } = this.context;
@@ -54,6 +102,11 @@ class ChatWindow extends Component {
     if (this.timeUpdateInterval) {
       clearInterval(this.timeUpdateInterval);
     }
+    // Gỡ event chặn browser drop khi unmount
+    document.removeEventListener('dragenter', this._docDragEnter, true);
+    document.removeEventListener('dragover',  this._docDragOver,  true);
+    document.removeEventListener('dragleave', this._docDragLeave, true);
+    document.removeEventListener('drop',      this._docDrop,      true);
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -156,39 +209,6 @@ class ChatWindow extends Component {
   handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      this.setState({ selectedFile: file });
-    }
-  };
-
-  handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    this.setState({ dragOver: true });
-  };
-
-  handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set dragOver to false if we're leaving the form itself
-    if (e.target.closest('.chat-input-form') === e.currentTarget) {
-      this.setState({ dragOver: false });
-    }
-  };
-
-  handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    this.setState({ dragOver: false });
-    
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      // Validate file size (optional, e.g., max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        alert('File size exceeds 10MB limit');
-        return;
-      }
       this.setState({ selectedFile: file });
     }
   };
@@ -756,8 +776,43 @@ class ChatWindow extends Component {
     }
 
     return (
-      <div className="chat-window-with-info">
+      <>
+      <div
+        className="chat-window-with-info"
+      >
       <div className="chat-window">
+        {this.state.dragOver && (
+          <div
+            className="chat-drop-overlay"
+            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
+            onDragLeave={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget)) {
+                this.dragCounter = 0;
+                this.setState({ dragOver: false });
+              }
+            }}
+            onDrop={async (e) => {
+              e.preventDefault(); e.stopPropagation();
+              this.dragCounter = 0;
+              this.setState({ dragOver: false });
+              const files = e.dataTransfer.files;
+              if (files && files.length > 0) {
+                const file = files[0];
+                if (file.size > 10 * 1024 * 1024) { alert('File quá lớn (tối đa 10MB)'); return; }
+                await this.context.sendMessage('', 'file', file);
+              }
+            }}
+          >
+            <div className="chat-drop-overlay-inner">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+              <p>Thả để gửi</p>
+            </div>
+          </div>
+        )}
         <div className="chat-window-header">
           <div
             className="chat-window-header-info clickable-header"
@@ -804,6 +859,18 @@ class ChatWindow extends Component {
           ref={this.messagesContainerRef}
           onScroll={this.handleScroll}
           style={chatMessagesStyle}
+          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              const file = files[0];
+              if (file.size > 10 * 1024 * 1024) { alert('File quá lớn (tối đa 10MB)'); return; }
+              await this.context.sendMessage('', 'file', file);
+            }
+          }}
         >
           {this.renderThemeDecorations()}
           {messages.map((msg) => {
@@ -866,11 +933,16 @@ class ChatWindow extends Component {
                         src={`http://localhost:5000${msg.fileUrl}`}
                         alt="attachment"
                         className="message-image"
+                        draggable={false}
+                        onClick={() => this.setState({ lightboxUrl: `http://localhost:5000${msg.fileUrl}` })}
                       />
                     )}
                     {msg.content && <p>{msg.content}</p>}
                     {msg.type === 'file' && msg.fileName && (
-                      <a href={`http://localhost:5000${msg.fileUrl}`} download>
+                      <a 
+                        href={`http://localhost:5000${msg.fileUrl}`}
+                        download
+                      >
                         📎 {msg.fileName}
                       </a>
                     )}
@@ -894,11 +966,8 @@ class ChatWindow extends Component {
         </div>
 
         <form 
-          className={`chat-input-form ${this.state.dragOver ? 'drag-over' : ''}`}
+          className="chat-input-form"
           onSubmit={this.handleSendMessage}
-          onDragOver={this.handleDragOver}
-          onDragLeave={this.handleDragLeave}
-          onDrop={this.handleDrop}
         >
           {selectedFile && (
             <div className="selected-file">
@@ -969,8 +1038,29 @@ class ChatWindow extends Component {
         />
       )}
       </div>
+
+      {/* Lightbox */}
+      {this.state.lightboxUrl && (
+        <div
+          className="lightbox-overlay"
+          onClick={() => this.setState({ lightboxUrl: null })}
+        >
+          <button
+            className="lightbox-close"
+            onClick={() => this.setState({ lightboxUrl: null })}
+            title="Đóng"
+          >✕</button>
+          <img
+            src={this.state.lightboxUrl}
+            alt="preview"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+      </>
     );
   }
 }
 
 export default ChatWindow;
+

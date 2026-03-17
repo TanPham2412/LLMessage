@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -73,6 +74,25 @@ class AppServer {
     this.app.use('/api/messages', messageRoutes);
     this.app.use('/api/friends', friendRoutes);
     this.app.use('/api/notifications', notificationRoutes);
+
+    // Route tải file với tên gốc (không cần auth vì filename là UUID không đoán được)
+    this.app.get('/api/files/download/:filename', async (req, res) => {
+      try {
+        const filename = path.basename(req.params.filename); // chống path traversal
+        const filePath = path.join(__dirname, '../uploads', filename);
+        if (!fs.existsSync(filePath)) {
+          return res.status(404).json({ success: false, message: 'File not found' });
+        }
+        const Message = require('./models/Message');
+        const msg = await Message.findOne({ fileUrl: `/uploads/${filename}` }).select('fileName');
+        const originalName = (msg && msg.fileName) ? msg.fileName : filename;
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(originalName)}`);
+        res.sendFile(filePath);
+      } catch (err) {
+        console.error('Download error:', err);
+        res.status(500).json({ success: false, message: 'Download failed' });
+      }
+    });
 
     // Endpoint kiểm tra sức khỏe
     this.app.get('/api/health', (req, res) => {

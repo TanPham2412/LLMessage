@@ -66,8 +66,10 @@ class MessageController {
 
       // Nếu có file được upload
       if (req.file) {
+        // Multer đọc originalname bằng latin1, cần decode sang utf-8 để hỗ trợ tiếng Việt
+        const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
         messageData.fileUrl = `/uploads/${req.file.filename}`;
-        messageData.fileName = req.file.originalname;
+        messageData.fileName = originalName;
         messageData.fileSize = req.file.size;
         messageData.type = req.file.mimetype.startsWith('image/') ? 'image' : 'file';
       }
