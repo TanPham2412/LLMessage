@@ -134,6 +134,8 @@ export class ChatProvider extends Component {
     socketService.socket.on('user-stop-typing', this.handleUserStopTyping);
     socketService.socket.on('new-conversation', this.handleNewConversation);
     socketService.socket.on('theme-received', this.handleThemeReceived);
+    socketService.socket.on('message-edited', this.handleMessageEdited);
+    socketService.socket.on('message-deleted', this.handleMessageDeleted);
 
     // Mark as setup
     this.listenersSetup = true;
@@ -247,6 +249,116 @@ export class ChatProvider extends Component {
     this.setState({ incomingTheme: data });
   };
 
+  handleMessageEdited = (data) => {
+    console.log('✏️ ChatContext received message-edited:', {
+      messageId: data._id,
+      newContent: data.content?.substring(0, 50)
+    });
+
+    this.setState(prevState => {
+      // Update messages array with edited message
+      const updatedMessages = prevState.messages.map(msg =>
+        msg._id === data._id
+          ? {
+              ...msg,
+              content: data.content,
+              editedAt: data.editedAt,
+              isEdited: data.isEdited
+            }
+          : msg
+      );
+
+      // Update conversations array - if this message is the lastMessage
+      const updatedConversations = prevState.conversations.map(conv => {
+        if (conv.lastMessage?._id === data._id || conv.lastMessage === data._id) {
+          return {
+            ...conv,
+            lastMessage: {
+              ...conv.lastMessage,
+              content: data.content,
+              editedAt: data.editedAt,
+              isEdited: data.isEdited
+            }
+          };
+        }
+        return conv;
+      });
+
+      // Update currentConversation's lastMessage if applicable
+      let updatedCurrentConversation = prevState.currentConversation;
+      if (updatedCurrentConversation?.lastMessage?._id === data._id || updatedCurrentConversation?.lastMessage === data._id) {
+        updatedCurrentConversation = {
+          ...updatedCurrentConversation,
+          lastMessage: {
+            ...updatedCurrentConversation.lastMessage,
+            content: data.content,
+            editedAt: data.editedAt,
+            isEdited: data.isEdited
+          }
+        };
+      }
+
+      return {
+        messages: updatedMessages,
+        conversations: updatedConversations,
+        currentConversation: updatedCurrentConversation
+      };
+    });
+  };
+
+  handleMessageDeleted = (data) => {
+    console.log('🗑️ ChatContext received message-deleted:', {
+      messageId: data._id
+    });
+
+    this.setState(prevState => {
+      // Update messages array with deleted message
+      const updatedMessages = prevState.messages.map(msg =>
+        msg._id === data._id
+          ? {
+              ...msg,
+              isDeleted: data.isDeleted,
+              deletedAt: data.deletedAt
+            }
+          : msg
+      );
+
+      // Update conversations array - if this message is the lastMessage
+      const updatedConversations = prevState.conversations.map(conv => {
+        if (conv.lastMessage?._id === data._id || conv.lastMessage === data._id) {
+          return {
+            ...conv,
+            lastMessage: {
+              ...conv.lastMessage,
+              isDeleted: data.isDeleted,
+              deletedAt: data.deletedAt
+            }
+          };
+        }
+        return conv;
+      });
+
+      // Update currentConversation's lastMessage if applicable
+      let updatedCurrentConversation = prevState.currentConversation;
+      if (updatedCurrentConversation?.lastMessage?._id === data._id || updatedCurrentConversation?.lastMessage === data._id) {
+        updatedCurrentConversation = {
+          ...updatedCurrentConversation,
+          lastMessage: {
+            ...updatedCurrentConversation.lastMessage,
+            isDeleted: data.isDeleted,
+            deletedAt: data.deletedAt
+          }
+        };
+      }
+
+      return {
+        messages: updatedMessages,
+        conversations: updatedConversations,
+        currentConversation: updatedCurrentConversation
+      };
+    });
+  };
+
   handleNewConversation = (conversation) => {
     console.log('🆕 Received new-conversation:', conversation);
     
@@ -284,6 +396,8 @@ export class ChatProvider extends Component {
     socketService.socket.off('user-stop-typing', this.handleUserStopTyping);
     socketService.socket.off('new-conversation', this.handleNewConversation);
     socketService.socket.off('theme-received', this.handleThemeReceived);
+    socketService.socket.off('message-edited', this.handleMessageEdited);
+    socketService.socket.off('message-deleted', this.handleMessageDeleted);
 
     // Reset flag
     this.listenersSetup = false;

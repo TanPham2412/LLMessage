@@ -56,11 +56,14 @@ class AppServer {
     const friendRoutes = require('./routes/friendRoutes');
     const notificationRoutes = require('./routes/notificationRoutes');
 
-    // Truyền socket handler vào friend routes
+    // Truyền socket handler vào controllers
     const FriendController = require('./controllers/friendController');
+    const messageController = require('./controllers/messageController');
     const notificationController = require('./controllers/notificationController');
     const friendController = new FriendController();
+    
     friendController.setSocketHandler(this.socketHandler);
+    messageController.setSocketHandler(this.socketHandler);
     notificationController.setSocketHandler(this.socketHandler);
     
     // Lưu controller instance để routes sử dụng
