@@ -72,9 +72,20 @@ app.get('/api/files/download/:filename', async function(req, res) {
 
 // SPA fallback (production)
 var buildPath = path.join(__dirname, 'apps/views/build');
-app.use(express.static(buildPath));
+if (fs.existsSync(buildPath)) {
+    app.use(express.static(buildPath));
+}
 app.get('*', function(req, res) {
-    res.sendFile(path.join(buildPath, 'index.html'));
+    var indexPath = path.join(buildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        // Fallback if build doesn't exist
+        res.status(404).json({
+            success: false,
+            message: 'Frontend build not found. Please run: npm run build'
+        });
+    }
 });
 
 // Kết nối database và khởi động server

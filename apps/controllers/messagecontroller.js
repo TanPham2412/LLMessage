@@ -177,7 +177,13 @@ router.put("/:messageId", async function(req, res) {
             });
         }
 
-        res.json({ success: true, message: 'Message edited successfully', data: result.data });
+        res.json({ success: true, message: 'Message edited successfully', data: { 
+            _id: result.data._id,
+            conversation: result.data.conversation,
+            content: result.data.content,
+            editedAt: result.data.editedAt,
+            isEdited: result.data.isEdited
+        } });
     } catch (error) {
         console.error('Edit message error:', error);
         res.status(500).json({ success: false, message: 'Failed to edit message', error: error.message });
@@ -331,7 +337,12 @@ router.delete("/:messageId", async function(req, res) {
             });
         }
 
-        res.json({ success: true, message: 'Message deleted successfully' });
+        res.json({ success: true, message: 'Message deleted successfully', data: {
+            _id: result.data._id,
+            conversation: result.data.conversation,
+            isDeleted: result.data.isDeleted,
+            deletedAt: result.data.deletedAt
+        } });
     } catch (error) {
         console.error('Delete message error:', error);
         res.status(500).json({ success: false, message: 'Failed to delete message', error: error.message });

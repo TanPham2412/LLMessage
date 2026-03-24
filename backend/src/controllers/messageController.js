@@ -366,7 +366,13 @@ class MessageController {
 
       res.json({
         success: true,
-        message: 'Message deleted successfully'
+        message: 'Message deleted successfully',
+        data: {
+          _id: message._id,
+          conversation: message.conversation,
+          isDeleted: message.isDeleted,
+          deletedAt: message.deletedAt
+        }
       });
     } catch (error) {
       console.error('Delete message error:', error);

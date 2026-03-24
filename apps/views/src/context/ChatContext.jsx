@@ -101,14 +101,24 @@ export class ChatProvider extends Component {
   }
 
   setupSocketListeners = () => {
-    const { socketService } = this.context;
+    const { socketService, socket } = this.context;
 
-    if (!socketService || !socketService.socket) {
-      console.error('❌ SocketService or socket not available in setupSocketListeners');
-      // Retry after a delay if needed
+    // Check if socket service is available
+    if (!socketService) {
+      console.warn('⏳ SocketService not available yet, retrying in 500ms...');
       if (!this.listenerSetupRetryCount || this.listenerSetupRetryCount < 5) {
         this.listenerSetupRetryCount = (this.listenerSetupRetryCount || 0) + 1;
-        console.log(`⏳ Retrying setupSocketListeners (${this.listenerSetupRetryCount}/5)...`);
+        setTimeout(() => this.setupSocketListeners(), 500);
+      }
+      return;
+    }
+
+    // Use the socket instance directly from context
+    const socketInstance = socket || socketService.socket;
+    if (!socketInstance) {
+      console.warn('⏳ Socket instance not ready yet, retrying in 500ms...');
+      if (!this.listenerSetupRetryCount || this.listenerSetupRetryCount < 3) {
+        this.listenerSetupRetryCount = (this.listenerSetupRetryCount || 0) + 1;
         setTimeout(() => this.setupSocketListeners(), 500);
       }
       return;
@@ -126,17 +136,17 @@ export class ChatProvider extends Component {
     // Remove existing listeners first to prevent duplicates
     this.removeSocketListeners();
 
-    // Sử dụng direct socket với bound methods
-    socketService.socket.on('user-offline', this.handleUserOffline);
-    socketService.socket.on('user-online', this.handleUserOnline);
-    socketService.socket.on('receive-message', this.handleReceiveMessage);
-    socketService.socket.on('user-typing', this.handleUserTyping);
-    socketService.socket.on('user-stop-typing', this.handleUserStopTyping);
-    socketService.socket.on('new-conversation', this.handleNewConversation);
-    socketService.socket.on('theme-received', this.handleThemeReceived);
-    socketService.socket.on('message-edited', this.handleMessageEdited);
-    socketService.socket.on('message-deleted', this.handleMessageDeleted);
-    socketService.socket.on('message-pinned', this.handleMessagePinned);
+    // Register listeners on the socket instance
+    socketInstance.on('user-offline', this.handleUserOffline);
+    socketInstance.on('user-online', this.handleUserOnline);
+    socketInstance.on('receive-message', this.handleReceiveMessage);
+    socketInstance.on('user-typing', this.handleUserTyping);
+    socketInstance.on('user-stop-typing', this.handleUserStopTyping);
+    socketInstance.on('new-conversation', this.handleNewConversation);
+    socketInstance.on('theme-received', this.handleThemeReceived);
+    socketInstance.on('message-edited', this.handleMessageEdited);
+    socketInstance.on('message-deleted', this.handleMessageDeleted);
+    socketInstance.on('message-pinned', this.handleMessagePinned);
 
     // Mark as setup
     this.listenersSetup = true;

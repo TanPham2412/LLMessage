@@ -34,7 +34,15 @@ class UserRepository {
     }
 
     async insertUser(userData) {
-        return await User.create(userData);
+        // Ensure authProvider is set to local for email/password registrations
+        if (!userData.authProvider) {
+            userData.authProvider = 'local';
+        }
+        const user = await User.create(userData);
+        if (!user) {
+            throw new Error('Failed to create user');
+        }
+        return user;
     }
 
     async updateUser(id, updateData) {

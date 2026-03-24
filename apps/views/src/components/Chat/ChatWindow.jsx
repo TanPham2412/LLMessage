@@ -5,6 +5,7 @@ import { getTimeAgo } from '../../utils/timeUtils';
 import api from '../../services/api.js';
 import ConversationInfo, { THEMES } from './ConversationInfo.jsx';
 import MessageContextMenu from './MessageContextMenu.jsx';
+import MessageActions from './MessageActions.jsx';
 import EditMessageModal from './EditMessageModal.jsx';
 
 class ChatWindow extends Component {
@@ -26,6 +27,8 @@ class ChatWindow extends Component {
       editingMessage: null,
       lightboxUrl: null, // URL of image shown in fullscreen lightbox
       recipientDeleted: false, // Track if recipient is deleted
+      contextMenu: null, // For right-click context menu
+      pinnedMessageIds: new Set(), // For tracking pinned messages
       // showInfoPanel is now managed by parent ChatHome via props
     };
 
@@ -145,6 +148,7 @@ class ChatWindow extends Component {
       this.loadTheme(currentConversationId);
       this.checkStatusVisibility();
       this.checkRecipientExists(); // Check if recipient is deleted when conversation changes
+      this.loadPinnedMessageIds(currentConversationId); // Load pinned messages for the new conversation
       setTimeout(() => this.scrollToBottom(), 100);
     } else {
       // Same conversation - check for new messages
@@ -292,9 +296,14 @@ class ChatWindow extends Component {
       if (response.success) {
         // Socket event will auto-update messages, just close modal
         this.setState({ editingMessage: null });
+        console.log('✅ Tin nhắn đã được chỉnh sửa thành công');
+      } else {
+        throw new Error(response.message || 'Lỗi khi chỉnh sửa tin nhắn');
       }
     } catch (error) {
       console.error('Edit message error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi chỉnh sửa tin nhắn';
+      alert('❌ ' + errorMsg);
       throw error;
     }
   };
@@ -304,10 +313,14 @@ class ChatWindow extends Component {
       const response = await api.deleteMessage(messageId);
       if (response.success) {
         // Socket event will auto-update messages
+        console.log('✅ Tin nhắn đã được thu hồi thành công');
+      } else {
+        throw new Error(response.message || 'Lỗi khi thu hồi tin nhắn');
       }
     } catch (error) {
       console.error('Delete message error:', error);
-      alert('Lỗi khi thu hồi tin nhắn: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi thu hồi tin nhắn';
+      alert('❌ ' + errorMsg);
     }
   };
 
@@ -317,10 +330,14 @@ class ChatWindow extends Component {
       if (response.success) {
         const { reloadMessages } = this.context;
         if (reloadMessages) await reloadMessages();
+        console.log('✅ Tin nhắn đã bị xóa khỏi view của bạn');
+      } else {
+        throw new Error(response.message || 'Lỗi khi xóa tin nhắn');
       }
     } catch (error) {
       console.error('Delete for me error:', error);
-      alert('Lỗi khi xóa tin nhắn: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi xóa tin nhắn';
+      alert('❌ ' + errorMsg);
     }
   };
 
@@ -353,6 +370,18 @@ class ChatWindow extends Component {
       el.classList.add('message-highlight');
       setTimeout(() => el.classList.remove('message-highlight'), 2000);
     }
+  };
+
+  handleMessageContextMenu = (e, message) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({
+      contextMenu: {
+        message,
+        x: e.clientX,
+        y: e.clientY
+      }
+    });
   };
 
   loadPinnedMessageIds = async (conversationId) => {
@@ -510,7 +539,7 @@ class ChatWindow extends Component {
     if (participant?.avatar) {
       const avatarUrl = participant.avatar.startsWith('http') 
         ? participant.avatar 
-        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${participant.avatar}`;
+        : `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${participant.avatar}`;
       return <img src={avatarUrl} alt={name} />;
     }
     
@@ -861,7 +890,7 @@ class ChatWindow extends Component {
   };
   render() {
     const { currentConversation, messages, loading } = this.context;
-    const { message, selectedFile, chatTheme, contextMenu } = this.state;
+    const { message, selectedFile, chatTheme, contextMenu, pinnedMessageIds } = this.state;
     const showInfoPanel = this.props.showInfoPanel;
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
 
@@ -886,12 +915,12 @@ class ChatWindow extends Component {
 
     return (
       <>
-      {contextMenu && (
+      {contextMenu && pinnedMessageIds && (
         <MessageContextMenu
           message={contextMenu.message}
           position={{ x: contextMenu.x, y: contextMenu.y }}
           currentUserId={currentUserId}
-          isPinned={this.state.pinnedMessageIds.has(contextMenu.message._id)}
+          isPinned={pinnedMessageIds.has(contextMenu.message._id)}
           onEdit={this.handleEditMessage}
           onDeleteForMe={this.handleDeleteForMe}
           onDeleteForAll={this.handleDeleteMessage}
@@ -1017,9 +1046,10 @@ class ChatWindow extends Component {
               className={`message ${
                 msg.sender?._id === currentUserId ? 'message-sent' : 'message-received'
               } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''} ${msg.sender?.isDeleted ? 'message-sender-deleted' : ''}`}
+              onContextMenu={(e) => this.handleMessageContextMenu(e, msg)}
             >
               {/* Avatar + tên người gửi trong nhóm (chỉ tin nhắn nhận được) */}
-              {currentConversation.type === 'group' && msg.sender?._id !== currentUserId && (
+              {currentConversation.type === 'group' && msg.sender && msg.sender._id !== currentUserId && (
                 <div className="message-sender-info">
                   <img
                     className="message-sender-avatar"
@@ -1027,12 +1057,25 @@ class ChatWindow extends Component {
                       msg.sender.avatar && msg.sender.avatar.startsWith('http')
                         ? msg.sender.avatar
                         : msg.sender.avatar
-                        ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${msg.sender.avatar}`
+                        ? `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.sender.avatar}`
                         : `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender.fullName || msg.sender.username || 'U')}&size=60&background=8b5cf6&color=fff`
                     }
                     alt={msg.sender.fullName || msg.sender.username}
                   />
                   <span className="message-sender-name">{msg.sender.fullName || msg.sender.username}</span>
+                </div>
+              )}
+              {/* Nếu msg.sender bị xóa (admin deleted) */}
+              {currentConversation.type === 'group' && !msg.sender && (
+                <div className="message-sender-info">
+                  <div className="message-sender-avatar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                      <path d="M8 12h8"/>
+                    </svg>
+                  </div>
+                  <span className="message-sender-name text-muted">Người dùng đã xóa</span>
                 </div>
               )}
               <div className="message-content">
@@ -1072,17 +1115,17 @@ class ChatWindow extends Component {
                     )}
                     {msg.type === 'image' && (
                       <img
-                        src={`http://localhost:5000${msg.fileUrl}`}
+                        src={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.fileUrl}`}
                         alt="attachment"
                         className="message-image"
                         draggable={false}
-                        onClick={() => this.setState({ lightboxUrl: `http://localhost:5000${msg.fileUrl}` })}
+                        onClick={() => this.setState({ lightboxUrl: `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.fileUrl}` })}
                       />
                     )}
                     {msg.content && <p>{msg.content}</p>}
                     {msg.type === 'file' && msg.fileName && (
                       <a 
-                        href={`http://localhost:5000${msg.fileUrl}`}
+                        href={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.fileUrl}`}
                         download
                       >
                         📎 {msg.fileName}
@@ -1094,6 +1137,12 @@ class ChatWindow extends Component {
               <div className="message-time">
                 {msg.isEdited && <span className="edited-indicator" title="Đã chỉnh sửa">chỉnh sửa</span>}
                 {this.formatTime(msg.createdAt)}
+                <MessageActions 
+                  message={msg}
+                  currentUserId={currentUserId}
+                  onEdit={this.handleEditMessage}
+                  onDelete={this.handleDeleteMessage}
+                />
               </div>
 
             </div>

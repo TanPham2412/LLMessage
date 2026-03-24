@@ -1031,6 +1031,13 @@
   opacity: 0.7;
 }
 
+/* Text Utilities */
+.text-muted {
+  color: #94a3b8;
+  opacity: 0.75;
+  font-style: italic;
+}
+
 /* Chat Input */
 .chat-input-form {
   padding: 20px 28px 24px;

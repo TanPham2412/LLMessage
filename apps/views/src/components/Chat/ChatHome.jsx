@@ -210,7 +210,7 @@ class ChatHome extends Component {
                     <img 
                       src={user.avatar.startsWith('http') 
                         ? user.avatar 
-                        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${user.avatar}`
+                        : `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.avatar}`
                       } 
                       alt={user.fullName || user.username}
                       style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
@@ -237,7 +237,7 @@ class ChatHome extends Component {
                         <img 
                           src={user.avatar.startsWith('http') 
                             ? user.avatar 
-                            : `${process.env.REACT_APP_API_URL.replace('/api', '')}${user.avatar}`
+                            : `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.avatar}`
                           } 
                           alt={user.fullName || user.username}
                           style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
