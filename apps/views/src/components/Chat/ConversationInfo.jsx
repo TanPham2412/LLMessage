@@ -208,6 +208,27 @@ class ConversationInfo extends Component {
       editingTargetId: null,
       editNicknameValue: '',
       editNicknamePublic: true,
+      // Pinned messages panel
+      showPinnedPanel: false,
+      pinnedMessages: [],
+      pinnedLoading: false,
+      // Media viewer panel
+      showMediaPanel: false,
+      mediaFiles: [],
+      mediaLoading: false,
+      lightboxUrl: null,
+      // Search panel
+      showSearchPanel: false,
+      searchQuery: '',
+      searchResults: [],
+      searchLoading: false,
+      // Share contact panel
+      showSharePanel: false,
+      shareFriends: [],
+      shareLoading: false,
+      shareSending: null,
+      shareSearch: '',
+      shareContactTarget: null,
     };
   }
 
@@ -484,6 +505,373 @@ class ConversationInfo extends Component {
     if (participant && this.props.onCreateGroupWithFriend) {
       this.props.onCreateGroupWithFriend(participant._id);
     }
+  };
+
+  handleOpenPinnedPanel = async () => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId) return;
+    this.setState({ showPinnedPanel: true, pinnedLoading: true, pinnedMessages: [] });
+    try {
+      const res = await api.getPinnedMessages(convId);
+      this.setState({ pinnedMessages: res.data || [], pinnedLoading: false });
+    } catch {
+      this.setState({ pinnedLoading: false });
+    }
+  };
+
+  handleClosePinnedPanel = () => this.setState({ showPinnedPanel: false });
+
+  handleOpenMediaPanel = async () => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId) return;
+    this.setState({ showMediaPanel: true, mediaLoading: true, mediaFiles: [] });
+    try {
+      const res = await api.getMediaFiles(convId);
+      this.setState({ mediaFiles: res.data || [], mediaLoading: false });
+    } catch {
+      this.setState({ mediaLoading: false });
+    }
+  };
+
+  handleCloseMediaPanel = () => this.setState({ showMediaPanel: false, lightboxUrl: null });
+
+  handleOpenSearchPanel = () => this.setState({ showSearchPanel: true, searchQuery: '', searchResults: [] });
+  handleCloseSearchPanel = () => this.setState({ showSearchPanel: false, searchQuery: '', searchResults: [] });
+
+  handleSearchMessages = async (q) => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId || !q.trim()) { this.setState({ searchResults: [] }); return; }
+    this.setState({ searchLoading: true });
+    try {
+      const res = await api.searchMessages(convId, q.trim());
+      this.setState({ searchResults: res.data || [], searchLoading: false });
+    } catch {
+      this.setState({ searchLoading: false });
+    }
+  };
+
+  handleOpenSharePanel = async () => {
+    // The person whose contact we're sharing = the other person in current conversation
+    const contactTarget = this.getParticipant(); // null for groups
+    this.setState({
+      showSharePanel: true, shareLoading: true,
+      shareFriends: [], shareSending: null, shareSearch: '',
+      shareContactTarget: contactTarget || null,
+    });
+    try {
+      const res = await api.getFriends();
+      let friends = res.data || [];
+      // Exclude the person being shared from the send-to list
+      if (contactTarget) {
+        friends = friends.filter(f => f._id !== contactTarget._id && f._id?.toString() !== contactTarget._id?.toString());
+      }
+      this.setState({ shareFriends: friends, shareLoading: false });
+    } catch {
+      this.setState({ shareLoading: false });
+    }
+  };
+  handleCloseSharePanel = () => this.setState({ showSharePanel: false });
+
+  handleSendContact = async (friend) => {
+    const { shareContactTarget } = this.state;
+    if (!shareContactTarget) return;
+    this.setState({ shareSending: friend._id });
+    try {
+      const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '');
+      const contactData = {
+        userId: shareContactTarget._id,
+        name: shareContactTarget.fullName || shareContactTarget.username,
+        username: shareContactTarget.username,
+        avatar: shareContactTarget.avatar
+          ? (shareContactTarget.avatar.startsWith('http') ? shareContactTarget.avatar : API_BASE + shareContactTarget.avatar)
+          : null,
+      };
+      // Get or create a conversation with the selected friend
+      const convRes = await api.createConversation(friend._id);
+      const targetConvId = convRes.data?._id || convRes.data?.conversation?._id;
+      if (!targetConvId) throw new Error('Could not get conversation');
+      await api.sendContactMessage(targetConvId, contactData);
+      this.setState({ shareSending: null, showSharePanel: false });
+    } catch {
+      this.setState({ shareSending: null });
+      alert('Không thể chia sẻ liên hệ');
+    }
+  };
+
+  renderSearchPanel = () => {
+    const { searchQuery, searchResults, searchLoading } = this.state;
+    const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '');
+    return (
+      <div className="nickname-panel-overlay" onClick={this.handleCloseSearchPanel}>
+        <div className="nickname-panel" onClick={e => e.stopPropagation()}>
+          <div className="nickname-panel-header">
+            <button className="nickname-back-btn" onClick={this.handleCloseSearchPanel}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <h3>Tìm kiếm tin nhắn</h3>
+          </div>
+          <div className="search-panel-input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="search-panel-icon">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              className="search-panel-input"
+              placeholder="Nhập để tìm kiếm..."
+              value={searchQuery}
+              autoFocus
+              onChange={e => {
+                const q = e.target.value;
+                this.setState({ searchQuery: q });
+                clearTimeout(this._searchTimer);
+                this._searchTimer = setTimeout(() => this.handleSearchMessages(q), 350);
+              }}
+            />
+          </div>
+          {searchLoading ? (
+            <div className="nickname-loading">Đang tìm...</div>
+          ) : searchResults.length === 0 && searchQuery.trim() ? (
+            <div className="nickname-loading" style={{color:'#8892a4'}}>Không tìm thấy tin nhắn nào</div>
+          ) : (
+            <div className="pinned-messages-list">
+              {searchResults.map(msg => (
+                <div key={msg._id} className="pinned-message-item" style={{cursor:'pointer'}} onClick={() => {
+                  this.handleCloseSearchPanel();
+                  if (this.props.onScrollToMessage) this.props.onScrollToMessage(msg._id);
+                }}>
+                  <div className="pinned-message-sender">
+                    <img
+                      src={msg.sender?.avatar
+                        ? (msg.sender.avatar.startsWith('http') ? msg.sender.avatar : API_BASE + msg.sender.avatar)
+                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender?.fullName || 'U')}&size=32&background=8b5cf6&color=fff`}
+                      alt="" className="pinned-avatar"
+                    />
+                    <span className="pinned-sender-name">{msg.sender?.fullName || msg.sender?.username}</span>
+                    <span className="pinned-time">{new Date(msg.createdAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                  <div className="pinned-message-content"><span>{msg.content}</span></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  renderSharePanel = () => {
+    const { shareFriends, shareLoading, shareSending, shareSearch, shareContactTarget } = this.state;
+    const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '');
+    const filtered = shareFriends.filter(f =>
+      (f.fullName || f.username || '').toLowerCase().includes(shareSearch.toLowerCase())
+    );
+    const targetAvatarUrl = shareContactTarget?.avatar
+      ? (shareContactTarget.avatar.startsWith('http') ? shareContactTarget.avatar : API_BASE + shareContactTarget.avatar)
+      : shareContactTarget
+        ? `https://ui-avatars.com/api/?name=${encodeURIComponent(shareContactTarget.fullName || shareContactTarget.username || 'U')}&size=48&background=8b5cf6&color=fff`
+        : null;
+    return (
+      <div className="nickname-panel-overlay" onClick={this.handleCloseSharePanel}>
+        <div className="nickname-panel" onClick={e => e.stopPropagation()}>
+          <div className="nickname-panel-header">
+            <button className="nickname-back-btn" onClick={this.handleCloseSharePanel}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <h3>Chia sẻ liên hệ</h3>
+          </div>
+          {!shareContactTarget ? (
+            <div className="nickname-loading" style={{color:'#8892a4'}}>Chức năng này chỉ dùng được trong cuộc trò chuyện 1-1</div>
+          ) : (
+            <>
+              {/* The contact being shared */}
+              <div className="share-contact-preview">
+                <span className="share-contact-preview-label">Chia sẻ thông tin của</span>
+                <div className="share-contact-preview-info">
+                  <img src={targetAvatarUrl} alt="" className="share-contact-preview-avatar" />
+                  <div>
+                    <span className="share-friend-name">{shareContactTarget.fullName || shareContactTarget.username}</span>
+                    {shareContactTarget.username && <span className="share-friend-username" style={{marginLeft:6}}>@{shareContactTarget.username}</span>}
+                  </div>
+                </div>
+              </div>
+              <div style={{padding:'0 16px 6px',fontSize:12,color:'#8892a4',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Gửi đến</div>
+              <div className="search-panel-input-wrap" style={{marginTop:0}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="search-panel-icon">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  className="search-panel-input"
+                  placeholder="Tìm kiếm bạn bè..."
+                  value={shareSearch}
+                  onChange={e => this.setState({ shareSearch: e.target.value })}
+                />
+              </div>
+              {shareLoading ? (
+                <div className="nickname-loading">Đang tải...</div>
+              ) : filtered.length === 0 ? (
+                <div className="nickname-loading" style={{color:'#8892a4'}}>Không có bạn bè nào</div>
+              ) : (
+                <div className="nickname-list">
+                  {filtered.map(friend => {
+                    const avatarUrl = friend.avatar
+                      ? (friend.avatar.startsWith('http') ? friend.avatar : API_BASE + friend.avatar)
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.fullName || friend.username || 'U')}&size=40&background=8b5cf6&color=fff`;
+                    return (
+                      <div key={friend._id} className="share-friend-item">
+                        <img src={avatarUrl} alt="" className="share-friend-avatar" />
+                        <div className="share-friend-info">
+                          <span className="share-friend-name">{friend.fullName || friend.username}</span>
+                          {friend.fullName && <span className="share-friend-username">@{friend.username}</span>}
+                        </div>
+                        <button
+                          className="share-friend-btn"
+                          disabled={shareSending === friend._id}
+                          onClick={() => this.handleSendContact(friend)}
+                        >
+                          {shareSending === friend._id ? '...' : 'Gửi'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  renderPinnedPanel = () => {
+    const { pinnedMessages, pinnedLoading } = this.state;
+    const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '');
+    return (
+      <div className="nickname-panel-overlay" onClick={this.handleClosePinnedPanel}>
+        <div className="nickname-panel" onClick={e => e.stopPropagation()}>
+          <div className="nickname-panel-header">
+            <button className="nickname-back-btn" onClick={this.handleClosePinnedPanel}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <h3>Tin nhắn đã ghim</h3>
+          </div>
+          {pinnedLoading ? (
+            <div className="nickname-loading">Đang tải...</div>
+          ) : pinnedMessages.length === 0 ? (
+            <div className="nickname-loading" style={{color:'#8892a4'}}>Chưa có tin nhắn nào được ghim</div>
+          ) : (
+            <div className="pinned-messages-list">
+              {pinnedMessages.map(msg => (
+                <div key={msg._id} className="pinned-message-item" onClick={() => {
+                  this.handleClosePinnedPanel();
+                  if (this.props.onScrollToMessage) this.props.onScrollToMessage(msg._id);
+                }} style={{cursor:'pointer'}}>
+                  <div className="pinned-message-sender">
+                    <img
+                      src={msg.sender?.avatar
+                        ? (msg.sender.avatar.startsWith('http') ? msg.sender.avatar : API_BASE + msg.sender.avatar)
+                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender?.fullName || 'U')}&size=32&background=8b5cf6&color=fff`}
+                      alt="" className="pinned-avatar"
+                    />
+                    <span className="pinned-sender-name">{msg.sender?.fullName || msg.sender?.username}</span>
+                    <span className="pinned-time">{new Date(msg.createdAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                  <div className="pinned-message-content">
+                    {msg.type === 'image' ? (
+                      <img src={API_BASE + msg.fileUrl} alt="" className="pinned-image" />
+                    ) : msg.type === 'file' ? (
+                      <span>📎 {msg.fileName}</span>
+                    ) : (
+                      <span>{msg.content}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  renderMediaPanel = () => {
+    const { mediaFiles, mediaLoading, lightboxUrl } = this.state;
+    const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '');
+    const images = mediaFiles.filter(m => m.type === 'image');
+    const files = mediaFiles.filter(m => m.type === 'file');
+    return (
+      <div className="nickname-panel-overlay" onClick={this.handleCloseMediaPanel}>
+        <div className="nickname-panel media-panel" onClick={e => e.stopPropagation()}>
+          <div className="nickname-panel-header">
+            <button className="nickname-back-btn" onClick={this.handleCloseMediaPanel}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <h3>Ảnh & File</h3>
+          </div>
+          {lightboxUrl && (
+            <div className="media-lightbox" onClick={() => this.setState({ lightboxUrl: null })}>
+              <img src={lightboxUrl} alt="" />
+            </div>
+          )}
+          {mediaLoading ? (
+            <div className="nickname-loading">Đang tải...</div>
+          ) : mediaFiles.length === 0 ? (
+            <div className="nickname-loading" style={{color:'#8892a4'}}>Chưa có file hoặc ảnh nào</div>
+          ) : (
+            <div className="media-panel-scroll">
+              {images.length > 0 && (
+                <>
+                  <p className="media-section-label">Ảnh ({images.length})</p>
+                  <div className="media-image-grid">
+                    {images.map(m => (
+                      <img
+                        key={m._id}
+                        src={API_BASE + m.fileUrl}
+                        alt={m.fileName || 'img'}
+                        className="media-thumb"
+                        onClick={() => this.setState({ lightboxUrl: API_BASE + m.fileUrl })}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              {files.length > 0 && (
+                <>
+                  <p className="media-section-label">File ({files.length})</p>
+                  <div className="media-file-list">
+                    {files.map(m => (
+                      <a
+                        key={m._id}
+                        href={API_BASE + m.fileUrl}
+                        download={m.fileName}
+                        className="media-file-item"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                        </svg>
+                        <span>{m.fileName || 'File'}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                      </a>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   handleOpenNicknamePanel = async () => {
@@ -934,21 +1322,24 @@ class ConversationInfo extends Component {
                   <circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>,
-                'Xem file phương tiện, file và liên kết'
+                'Xem file phương tiện, file và liên kết',
+                false, this.handleOpenMediaPanel
               )}
               {this.renderActionRow(
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="17" x2="12" y2="22"/>
                   <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z"/>
                 </svg>,
-                'Tin nhắn đã ghim'
+                'Tin nhắn đã ghim',
+                false, this.handleOpenPinnedPanel
               )}
               {this.renderActionRow(
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"/>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>,
-                'Tìm kiếm trong cuộc trò chuyện'
+                'Tìm kiếm trong cuộc trò chuyện',
+                false, this.handleOpenSearchPanel
               )}
               {this.renderActionRow(
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -958,7 +1349,8 @@ class ConversationInfo extends Component {
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
                   <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                 </svg>,
-                'Chia sẻ thông tin liên hệ'
+                'Chia sẻ thông tin liên hệ',
+                false, this.handleOpenSharePanel
               )}
             </div>
           )}
@@ -1009,6 +1401,10 @@ class ConversationInfo extends Component {
       {showReportModal && this.renderReportModal()}
       {showThemePicker && this.renderThemePicker()}
       {this.state.showNicknamePanel && this.renderNicknamePanel()}
+      {this.state.showMediaPanel && this.renderMediaPanel()}
+      {this.state.showPinnedPanel && this.renderPinnedPanel()}
+      {this.state.showSearchPanel && this.renderSearchPanel()}
+      {this.state.showSharePanel && this.renderSharePanel()}
       </>
     );
   }

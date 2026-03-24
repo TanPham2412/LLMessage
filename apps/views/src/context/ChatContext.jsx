@@ -136,6 +136,7 @@ export class ChatProvider extends Component {
     socketService.socket.on('theme-received', this.handleThemeReceived);
     socketService.socket.on('message-edited', this.handleMessageEdited);
     socketService.socket.on('message-deleted', this.handleMessageDeleted);
+    socketService.socket.on('message-pinned', this.handleMessagePinned);
 
     // Mark as setup
     this.listenersSetup = true;
@@ -359,6 +360,13 @@ export class ChatProvider extends Component {
     });
   };
 
+  handleMessagePinned = (data) => {
+    // Notify ChatWindow to refresh pinned IDs via a state flag
+    this.setState(prevState => ({
+      messagePinnedEvent: data // ChatWindow can watch this
+    }));
+  };
+
   handleNewConversation = (conversation) => {
     console.log('🆕 Received new-conversation:', conversation);
     
@@ -398,6 +406,7 @@ export class ChatProvider extends Component {
     socketService.socket.off('theme-received', this.handleThemeReceived);
     socketService.socket.off('message-edited', this.handleMessageEdited);
     socketService.socket.off('message-deleted', this.handleMessageDeleted);
+    socketService.socket.off('message-pinned', this.handleMessagePinned);
 
     // Reset flag
     this.listenersSetup = false;
@@ -750,6 +759,17 @@ export class ChatProvider extends Component {
     }
   };
 
+  reloadMessages = async () => {
+    const { currentConversation } = this.state;
+    if (!currentConversation) return;
+    try {
+      const response = await api.getMessages(currentConversation._id);
+      if (response.success) this.setState({ messages: response.data });
+    } catch (e) {
+      console.error('Reload messages error:', e);
+    }
+  };
+
   rejectFriendRequest = async (requestId) => {
     try {
       const response = await api.rejectFriendRequest(requestId);
@@ -801,6 +821,7 @@ export class ChatProvider extends Component {
       rejectFriendRequest: this.rejectFriendRequest,
       socketService: this.context?.socketService,
       refreshCurrentNicknames: this.refreshCurrentNicknames,
+      reloadMessages: this.reloadMessages,
     };
 
     return (

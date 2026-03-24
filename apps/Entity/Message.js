@@ -40,7 +40,7 @@ class Message {
             },
             type: {
                 type: String,
-                enum: ['text', 'image', 'file', 'system'],
+                enum: ['text', 'image', 'file', 'system', 'contact'],
                 default: 'text'
             },
             fileUrl: {
@@ -91,6 +91,16 @@ class Message {
             isEdited: {
                 type: Boolean,
                 default: false
+            },
+            deletedFor: [{
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            }],
+            contactData: {
+                userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                name: { type: String, default: '' },
+                username: { type: String, default: '' },
+                avatar: { type: String, default: '' }
             }
         }, {
             timestamps: true

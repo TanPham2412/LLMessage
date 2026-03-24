@@ -13,7 +13,7 @@ class MessageService {
         this.userRepository = new UserRepository();
     }
 
-    async sendMessage(conversationId, senderId, content, type, fileData) {
+    async sendMessage(conversationId, senderId, content, type, fileData, contactData) {
         var conversation = await this.conversationRepository.findById(conversationId);
         if (!conversation) {
             return { success: false, message: 'Conversation not found' };
@@ -56,6 +56,11 @@ class MessageService {
             messageData.type = fileData.type;
         }
 
+        if (contactData) {
+            messageData.type = 'contact';
+            messageData.contactData = contactData;
+        }
+
         var message = await this.messageRepository.insertMessage(messageData);
 
         conversation.lastMessage = message._id;
@@ -91,6 +96,10 @@ class MessageService {
         var messages = await this.messageRepository.getMessagesByConversation(conversationId, query.createdAt ? { createdAt: query.createdAt } : {}, skip, limit);
 
         var filteredMessages = messages.filter(function(msg) {
+            // Filter out messages deleted for this user specifically
+            if (msg.deletedFor && msg.deletedFor.some(function(id) { return id.toString() === userId.toString(); })) {
+                return false;
+            }
             if (!msg.isBlocked) return true;
             var senderId = msg.sender._id ? msg.sender._id.toString() : msg.sender.toString();
             return senderId === userId.toString();
@@ -173,11 +182,126 @@ class MessageService {
             return { success: false, message: 'You can only delete your own messages', forbidden: true };
         }
 
+        var twelveHours = 12 * 60 * 60 * 1000;
+        if (Date.now() - message.createdAt.getTime() > twelveHours) {
+            return { success: false, message: 'Cannot delete message older than 12 hours' };
+        }
+
         message.isDeleted = true;
         message.deletedAt = Date.now();
         await message.save();
 
         return { success: true, data: message };
+    }
+
+    async deleteMessageForMe(messageId, userId) {
+        var message = await this.messageRepository.findById(messageId);
+        if (!message) {
+            return { success: false, message: 'Message not found' };
+        }
+
+        var alreadyDeleted = message.deletedFor.some(function(id) {
+            return id.toString() === userId.toString();
+        });
+        if (!alreadyDeleted) {
+            message.deletedFor.push(userId);
+            await message.save();
+        }
+
+        return { success: true, data: { messageId: message._id, conversation: message.conversation } };
+    }
+
+    async pinMessage(messageId, userId, conversationId) {
+        var conversation = await this.conversationRepository.findById(conversationId);
+        if (!conversation) {
+            return { success: false, message: 'Conversation not found' };
+        }
+        if (!conversation.hasParticipant(userId)) {
+            return { success: false, message: 'Not a participant', forbidden: true };
+        }
+
+        var message = await this.messageRepository.findById(messageId);
+        if (!message || message.isDeleted) {
+            return { success: false, message: 'Message not found or deleted' };
+        }
+
+        var existingPin = conversation.pinnedMessages.find(function(p) {
+            return p.message.toString() === messageId.toString();
+        });
+
+        var isPinned;
+        if (existingPin) {
+            conversation.pinnedMessages = conversation.pinnedMessages.filter(function(p) {
+                return p.message.toString() !== messageId.toString();
+            });
+            isPinned = false;
+        } else {
+            conversation.pinnedMessages.push({ message: messageId, pinnedBy: userId, pinnedAt: new Date() });
+            isPinned = true;
+        }
+
+        await conversation.save();
+
+        var systemMessage = null;
+        if (isPinned) {
+            var user = await this.userRepository.findByIdSelectFields(userId, 'fullName username');
+            var userName = user ? (user.fullName || user.username) : 'Ai đó';
+            var sysData = {
+                conversation: conversationId,
+                sender: userId,
+                type: 'system',
+                content: `${userName} đã ghim một tin nhắn`
+            };
+            systemMessage = await this.messageRepository.insertMessage(sysData);
+            await systemMessage.populate('sender', 'username fullName avatar');
+        }
+
+        return { success: true, isPinned: isPinned, messageId: messageId, conversationId: conversationId, systemMessage };
+    }
+
+    async getPinnedMessages(conversationId, userId) {
+        var conversation = await this.conversationRepository.findById(conversationId);
+        if (!conversation) {
+            return { success: false, message: 'Conversation not found' };
+        }
+        if (!conversation.hasParticipant(userId)) {
+            return { success: false, message: 'Not a participant', forbidden: true };
+        }
+
+        var pinData = conversation.pinnedMessages || [];
+        var messageIds = pinData.map(function(p) { return p.message; });
+        var messages = await this.messageRepository.findByIds(messageIds);
+
+        var result = messages.map(function(msg) {
+            var pin = pinData.find(function(p) { return p.message.toString() === msg._id.toString(); });
+            var obj = msg.toObject();
+            obj.pinnedBy = pin ? pin.pinnedBy : null;
+            obj.pinnedAt = pin ? pin.pinnedAt : null;
+            return obj;
+        });
+
+        return { success: true, data: result };
+    }
+
+    async getMediaFiles(conversationId, userId) {
+        var conversation = await this.conversationRepository.findById(conversationId);
+        if (!conversation) {
+            return { success: false, message: 'Conversation not found' };
+        }
+        if (!conversation.hasParticipant(userId)) {
+            return { success: false, message: 'Not a participant', forbidden: true };
+        }
+
+        var media = await this.messageRepository.getMediaByConversation(conversationId);
+        return { success: true, data: media };
+    }
+
+    async searchMessages(conversationId, userId, query) {
+        var conversation = await this.conversationRepository.findById(conversationId);
+        if (!conversation) return { success: false, message: 'Conversation not found' };
+        if (!conversation.hasParticipant(userId)) return { success: false, message: 'Not a participant', forbidden: true };
+        var results = await this.messageRepository.searchByContent(conversationId, query);
+        return { success: true, data: results };
     }
 
     async getAllMessages(page, limit) {

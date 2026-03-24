@@ -289,6 +289,36 @@ class APIService {
     return response.data;
   }
 
+  async deleteMessageForMe(messageId) {
+    const response = await this.client.delete(`/messages/${messageId}/me`);
+    return response.data;
+  }
+
+  async pinMessage(messageId, conversationId) {
+    const response = await this.client.post(`/messages/${messageId}/pin`, { conversationId });
+    return response.data;
+  }
+
+  async getPinnedMessages(conversationId) {
+    const response = await this.client.get(`/messages/conversation/${conversationId}/pinned`);
+    return response.data;
+  }
+
+  async getMediaFiles(conversationId) {
+    const response = await this.client.get(`/messages/conversation/${conversationId}/media`);
+    return response.data;
+  }
+
+  async searchMessages(conversationId, q) {
+    const response = await this.client.get(`/messages/conversation/${conversationId}/search`, { params: { q } });
+    return response.data;
+  }
+
+  async sendContactMessage(conversationId, contactData) {
+    const response = await this.client.post('/messages', { conversationId, type: 'contact', contactData });
+    return response.data;
+  }
+
   async getAllMessages(params = {}) {
     const response = await this.client.get('/messages/admin/all', { params });
     return response.data;

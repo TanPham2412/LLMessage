@@ -1,9 +1,10 @@
 ﻿import React, { Component } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../context/ChatContext.jsx';
 import { getTimeAgo } from '../../utils/timeUtils';
 import api from '../../services/api.js';
 import ConversationInfo, { THEMES } from './ConversationInfo.jsx';
-import MessageActions from './MessageActions.jsx';
+import MessageContextMenu from './MessageContextMenu.jsx';
 import EditMessageModal from './EditMessageModal.jsx';
 
 class ChatWindow extends Component {
@@ -23,8 +24,9 @@ class ChatWindow extends Component {
       chatTheme: null,
       dragOver: false,
       editingMessage: null,
-      lightboxUrl: null, // URL of image shown in fullscreen lightbox
-      // showInfoPanel is now managed by parent ChatHome via props
+      lightboxUrl: null,
+      contextMenu: null, // { message, x, y }
+      pinnedMessageIds: new Set(), // IDs of pinned messages in current conversation
     };
 
     this.dragCounter = 0;
@@ -76,6 +78,8 @@ class ChatWindow extends Component {
         }
       }
     };
+    this._closeContextMenu = () => this.setState({ contextMenu: null });
+    document.addEventListener('click', this._closeContextMenu);
     document.addEventListener('dragenter', this._docDragEnter, true);
     document.addEventListener('dragover',  this._docDragOver,  true);
     document.addEventListener('dragleave', this._docDragLeave, true);
@@ -103,6 +107,7 @@ class ChatWindow extends Component {
       clearInterval(this.timeUpdateInterval);
     }
     // Gỡ event chặn browser drop khi unmount
+    document.removeEventListener('click', this._closeContextMenu);
     document.removeEventListener('dragenter', this._docDragEnter, true);
     document.removeEventListener('dragover',  this._docDragOver,  true);
     document.removeEventListener('dragleave', this._docDragLeave, true);
@@ -139,6 +144,7 @@ class ChatWindow extends Component {
       });
       this.loadTheme(currentConversationId);
       this.checkStatusVisibility();
+      this.loadPinnedMessageIds(currentConversationId);
       setTimeout(() => this.scrollToBottom(), 100);
     } else {
       // Same conversation - check for new messages
@@ -254,7 +260,63 @@ class ChatWindow extends Component {
       }
     } catch (error) {
       console.error('Delete message error:', error);
+      alert('Lỗi khi thu hồi tin nhắn: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  handleDeleteForMe = async (messageId) => {
+    try {
+      const response = await api.deleteMessageForMe(messageId);
+      if (response.success) {
+        const { reloadMessages } = this.context;
+        if (reloadMessages) await reloadMessages();
+      }
+    } catch (error) {
+      console.error('Delete for me error:', error);
       alert('Lỗi khi xóa tin nhắn: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  handlePinMessage = async (message) => {
+    try {
+      const { currentConversation } = this.context;
+      if (!currentConversation) return;
+      const response = await api.pinMessage(message._id, currentConversation._id);
+      if (response.success) {
+        this.setState(prev => {
+          const newPinned = new Set(prev.pinnedMessageIds);
+          if (response.isPinned) {
+            newPinned.add(message._id);
+          } else {
+            newPinned.delete(message._id);
+          }
+          return { pinnedMessageIds: newPinned };
+        });
+      }
+    } catch (error) {
+      console.error('Pin message error:', error);
+      alert('Lỗi khi ghim tin nhắn: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  handleScrollToMessage = (messageId) => {
+    const el = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('message-highlight');
+      setTimeout(() => el.classList.remove('message-highlight'), 2000);
+    }
+  };
+
+  loadPinnedMessageIds = async (conversationId) => {
+    try {
+      const response = await api.getPinnedMessages(conversationId);
+      if (response.success) {
+        const ids = new Set(response.data.map(m => m._id));
+        this.setState({ pinnedMessageIds: ids });
+      }
+    } catch (e) {
+      this.setState({ pinnedMessageIds: new Set() });
     }
   };
 
@@ -752,7 +814,7 @@ class ChatWindow extends Component {
   };
   render() {
     const { currentConversation, messages, loading } = this.context;
-    const { message, selectedFile, chatTheme } = this.state;
+    const { message, selectedFile, chatTheme, contextMenu } = this.state;
     const showInfoPanel = this.props.showInfoPanel;
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
 
@@ -777,6 +839,19 @@ class ChatWindow extends Component {
 
     return (
       <>
+      {contextMenu && (
+        <MessageContextMenu
+          message={contextMenu.message}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          currentUserId={currentUserId}
+          isPinned={this.state.pinnedMessageIds.has(contextMenu.message._id)}
+          onEdit={this.handleEditMessage}
+          onDeleteForMe={this.handleDeleteForMe}
+          onDeleteForAll={this.handleDeleteMessage}
+          onPin={this.handlePinMessage}
+          onClose={() => this.setState({ contextMenu: null })}
+        />
+      )}
       <div
         className="chat-window-with-info"
       >
@@ -891,9 +966,16 @@ class ChatWindow extends Component {
             return (
             <div
               key={msg._id}
+              data-message-id={msg._id}
               className={`message ${
                 msg.sender._id === currentUserId ? 'message-sent' : 'message-received'
               } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''}`}
+              onContextMenu={(e) => {
+                if (msg.isBlocked) return;
+                e.preventDefault();
+                e.stopPropagation();
+                this.setState({ contextMenu: { message: msg, x: e.clientX, y: e.clientY } });
+              }}
             >
               {/* Avatar + tên người gửi trong nhóm (chỉ tin nhắn nhận được) */}
               {currentConversation.type === 'group' && msg.sender._id !== currentUserId && (
@@ -928,6 +1010,25 @@ class ChatWindow extends Component {
                   </div>
                 ) : (
                   <>
+                    {msg.type === 'contact' && msg.contactData && (
+                      <div
+                        className="message-contact-card"
+                        onClick={() => this.props.navigate(`/profile/${msg.contactData.userId}`)}
+                      >
+                        <img
+                          className="message-contact-avatar"
+                          src={msg.contactData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.contactData.name || 'U')}&size=48&background=8b5cf6&color=fff`}
+                          alt=""
+                        />
+                        <div className="message-contact-info">
+                          <span className="message-contact-name">{msg.contactData.name}</span>
+                          {msg.contactData.username && <span className="message-contact-username">@{msg.contactData.username}</span>}
+                        </div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="message-contact-arrow">
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                      </div>
+                    )}
                     {msg.type === 'image' && (
                       <img
                         src={`http://localhost:5000${msg.fileUrl}`}
@@ -953,12 +1054,7 @@ class ChatWindow extends Component {
                 {msg.isEdited && <span className="edited-indicator" title="Đã chỉnh sửa">chỉnh sửa</span>}
                 {this.formatTime(msg.createdAt)}
               </div>
-              <MessageActions
-                message={msg}
-                currentUserId={currentUserId}
-                onEdit={this.handleEditMessage}
-                onDelete={this.handleDeleteMessage}
-              />
+
             </div>
             );
           })}
@@ -1035,6 +1131,7 @@ class ChatWindow extends Component {
           onThemeChange={this.handleThemeChange}
           currentTheme={chatTheme}
           onCreateGroupWithFriend={this.props.onCreateGroupWithFriend}
+          onScrollToMessage={this.handleScrollToMessage}
         />
       )}
       </div>
@@ -1062,5 +1159,12 @@ class ChatWindow extends Component {
   }
 }
 
-export default ChatWindow;
+function withNavigate(Component) {
+  return function(props) {
+    const navigate = useNavigate();
+    return <Component {...props} navigate={navigate} />;
+  };
+}
+
+export default withNavigate(ChatWindow);
 

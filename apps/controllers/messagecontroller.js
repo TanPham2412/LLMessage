@@ -67,7 +67,7 @@ router.use(authenticate);
 router.post("/", upload.single('file'), async function(req, res) {
     try {
         var messageService = new MessageService();
-        var { conversationId, content, type } = req.body;
+        var { conversationId, content, type, contactData } = req.body;
         var senderId = req.user.id;
 
         var fileData = null;
@@ -81,7 +81,7 @@ router.post("/", upload.single('file'), async function(req, res) {
             };
         }
 
-        var result = await messageService.sendMessage(conversationId, senderId, content, type, fileData);
+        var result = await messageService.sendMessage(conversationId, senderId, content, type, fileData, contactData ? (typeof contactData === 'string' ? JSON.parse(contactData) : contactData) : null);
 
         if (!result.success) {
             return res.status(404).json({ success: false, message: result.message });
@@ -184,7 +184,129 @@ router.put("/:messageId", async function(req, res) {
     }
 });
 
-// DELETE /:messageId - Delete message
+// DELETE /:messageId/me - Delete message for me only
+router.delete("/:messageId/me", async function(req, res) {
+    try {
+        var messageService = new MessageService();
+        var { messageId } = req.params;
+        var userId = req.user.id;
+
+        var result = await messageService.deleteMessageForMe(messageId, userId);
+        if (!result.success) {
+            return res.status(404).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, message: 'Message removed from your view', data: result.data });
+    } catch (error) {
+        console.error('Delete for me error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete message', error: error.message });
+    }
+});
+
+// POST /:messageId/pin - Pin or unpin a message
+router.post("/:messageId/pin", async function(req, res) {
+    try {
+        var messageService = new MessageService();
+        var { messageId } = req.params;
+        var { conversationId } = req.body;
+        var userId = req.user.id;
+
+        if (!conversationId) {
+            return res.status(400).json({ success: false, message: 'conversationId is required' });
+        }
+
+        var result = await messageService.pinMessage(messageId, userId, conversationId);
+        if (!result.success) {
+            var statusCode = result.forbidden ? 403 : 400;
+            return res.status(statusCode).json({ success: false, message: result.message });
+        }
+
+        // Emit socket event to all participants
+        if (socketHandler && socketHandler.io) {
+            socketHandler.io.to("conversation:" + conversationId).emit('message-pinned', {
+                messageId: messageId,
+                conversationId: conversationId,
+                isPinned: result.isPinned
+            });
+            // Emit system notification message
+            if (result.isPinned && result.systemMessage) {
+                socketHandler.io.to("conversation:" + conversationId).emit('receive-message', result.systemMessage);
+            }
+        }
+
+        res.json({ success: true, isPinned: result.isPinned });
+    } catch (error) {
+        console.error('Pin message error:', error);
+        res.status(500).json({ success: false, message: 'Failed to pin message', error: error.message });
+    }
+});
+
+// GET /conversation/:conversationId/pinned - Get pinned messages
+router.get("/conversation/:conversationId/pinned", async function(req, res) {
+    try {
+        var messageService = new MessageService();
+        var { conversationId } = req.params;
+        var userId = req.user.id;
+
+        var result = await messageService.getPinnedMessages(conversationId, userId);
+        if (!result.success) {
+            var statusCode = result.forbidden ? 403 : 404;
+            return res.status(statusCode).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, data: result.data });
+    } catch (error) {
+        console.error('Get pinned messages error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch pinned messages', error: error.message });
+    }
+});
+
+// GET /conversation/:conversationId/media - Get media files & links
+router.get("/conversation/:conversationId/media", async function(req, res) {
+    try {
+        var messageService = new MessageService();
+        var { conversationId } = req.params;
+        var userId = req.user.id;
+
+        var result = await messageService.getMediaFiles(conversationId, userId);
+        if (!result.success) {
+            var statusCode = result.forbidden ? 403 : 404;
+            return res.status(statusCode).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, data: result.data });
+    } catch (error) {
+        console.error('Get media error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch media', error: error.message });
+    }
+});
+
+// GET /conversation/:conversationId/search - Search messages by content
+router.get("/conversation/:conversationId/search", async function(req, res) {
+    try {
+        var messageService = new MessageService();
+        var { conversationId } = req.params;
+        var { q } = req.query;
+        var userId = req.user.id;
+
+        if (!q || q.trim().length < 1) {
+            return res.json({ success: true, data: [] });
+        }
+
+        var result = await messageService.searchMessages(conversationId, userId, q.trim());
+        if (!result.success) {
+            var statusCode = result.forbidden ? 403 : 404;
+            return res.status(statusCode).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, data: result.data });
+    } catch (error) {
+        console.error('Search messages error:', error);
+        res.status(500).json({ success: false, message: 'Search failed', error: error.message });
+    }
+});
+
+// DELETE /:messageId - Delete message for all (thu hồi)
 router.delete("/:messageId", async function(req, res) {
     try {
         var messageService = new MessageService();

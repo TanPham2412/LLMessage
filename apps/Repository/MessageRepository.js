@@ -50,6 +50,33 @@ class MessageRepository {
     async countAllMessages() {
         return await Message.countDocuments({ isDeleted: false });
     }
+
+    async findByIds(ids) {
+        return await Message.find({ _id: { $in: ids }, isDeleted: false })
+            .populate('sender', 'username fullName avatar')
+            .sort({ createdAt: -1 });
+    }
+
+    async getMediaByConversation(conversationId) {
+        return await Message.find({
+            conversation: conversationId,
+            type: { $in: ['image', 'file'] },
+            isDeleted: false
+        })
+            .populate('sender', 'username fullName avatar')
+            .sort({ createdAt: -1 });
+    }
+    async searchByContent(conversationId, query) {
+        return await Message.find({
+            conversation: conversationId,
+            isDeleted: false,
+            type: 'text',
+            content: { $regex: query, $options: 'i' }
+        })
+            .populate('sender', 'username fullName avatar')
+            .sort({ createdAt: -1 })
+            .limit(50);
+    }
 }
 
 module.exports = MessageRepository;

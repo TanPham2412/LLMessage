@@ -1,20 +1,8 @@
-/* Message Actions (Kebab Menu) */
+/* Message Actions - hidden, kept for compatibility */
 .message-actions {
-  position: absolute;
-  left: -48px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
-  pointer-events: none;
+  display: none;
 }
 
-.message:hover .message-actions {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: all;
-}
 
 .menu-toggle {
   display: flex;

@@ -74,6 +74,11 @@ class Conversation {
                 target: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
                 nickname: { type: String, trim: true },
                 isPublic: { type: Boolean, default: true }
+            }],
+            pinnedMessages: [{
+                message: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
+                pinnedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                pinnedAt: { type: Date, default: Date.now }
             }]
         }, {
             timestamps: true
