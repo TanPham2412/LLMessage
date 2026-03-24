@@ -627,7 +627,7 @@ export class ChatProvider extends Component {
       messageId: message._id,
       messageConversation: message.conversation,
       currentConversationId: this.state.currentConversation?._id,
-      messageSender: typeof message.sender === 'object' ? message.sender._id : message.sender,
+      messageSender: typeof message.sender === 'object' ? message.sender?._id : message.sender,
       currentUserId: currentUserId
     });
 

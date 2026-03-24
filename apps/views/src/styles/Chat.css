@@ -1006,6 +1006,20 @@
   margin: 0;
 }
 
+/* Messages from Deleted Sender */
+.message-sender-deleted {
+  opacity: 0.7;
+}
+
+.message-sender-deleted .message-sender-info {
+  opacity: 0.6;
+}
+
+.message-sender-deleted .message-sender-name {
+  color: #94a3b8;
+  font-style: italic;
+}
+
 .edited-indicator {
   display: inline-block;
   font-size: 10px;
@@ -1108,6 +1122,14 @@
   transform: translateY(-2px);
 }
 
+.btn-file-disabled {
+  background: rgba(100, 116, 139, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .message-input {
   flex: 1;
   padding: 14px 20px;
@@ -1129,6 +1151,14 @@
   background: rgba(30, 41, 59, 0.8);
   border-color: #a78bfa;
   box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
+}
+
+.message-input:disabled {
+  background: rgba(30, 41, 59, 0.4);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .btn-send {
@@ -1282,6 +1312,43 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(180,255,100,0.95) 0%, rgba(120,220,60,0.5) 50%, transparent 100%);
   box-shadow: 0 0 8px 2px rgba(160,255,80,0.5), 0 0 16px 4px rgba(100,220,40,0.2);
+}
+
+/* Recipient Deleted Banner */
+.recipient-deleted-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
+  border-top: 2px solid #ef4444;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+.recipient-deleted-banner svg {
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.recipient-deleted-banner span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 

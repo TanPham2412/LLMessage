@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import api from '../../services/api.js';
 import '../../styles/Admin.css';
 
 class AdminDashboard extends Component {
@@ -11,14 +12,50 @@ class AdminDashboard extends Component {
         totalMessages: 0,
         onlineUsers: 0,
         totalConversations: 0
-      }
+      },
+      loading: true,
+      error: null
     };
   }
 
   componentDidMount() {
-    // Tải thống kê dashboard
-    // Đây là placeholder - bạn có thể triển khai API calls
+    this.loadStats();
+    // Refresh stats every 30 seconds
+    this.refreshInterval = setInterval(() => {
+      this.loadStats();
+    }, 30000);
   }
+
+  componentWillUnmount() {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+  }
+
+  loadStats = async () => {
+    try {
+      this.setState({ loading: true, error: null });
+      const response = await api.getDashboardStats();
+      
+      if (response.success) {
+        this.setState({ 
+          stats: response.data,
+          loading: false 
+        });
+      } else {
+        this.setState({ 
+          error: response.message || 'Lỗi tải dữ liệu',
+          loading: false 
+        });
+      }
+    } catch (error) {
+      console.error('Load stats error:', error);
+      this.setState({ 
+        error: 'Lỗi kết nối server',
+        loading: false 
+      });
+    }
+  };
 
   handleLogout = () => {
     localStorage.removeItem('token');
@@ -27,7 +64,7 @@ class AdminDashboard extends Component {
   };
 
   render() {
-    const { stats } = this.state;
+    const { stats, loading, error } = this.state;
 
     return (
       <div className="admin-container">
@@ -42,25 +79,43 @@ class AdminDashboard extends Component {
         </div>
 
         <div className="admin-content">
+          {error && (
+            <div className="error-message">
+              ⚠️ {error}
+            </div>
+          )}
+
           <div className="stats-grid">
             <div className="stat-card">
+              <div className="stat-icon">👥</div>
               <h3>Tổng Người Dùng</h3>
-              <p className="stat-number">{stats.totalUsers}</p>
+              <p className="stat-number">
+                {loading ? '...' : stats.totalUsers}
+              </p>
             </div>
 
             <div className="stat-card">
+              <div className="stat-icon">💬</div>
               <h3>Tổng Tin Nhắn</h3>
-              <p className="stat-number">{stats.totalMessages}</p>
+              <p className="stat-number">
+                {loading ? '...' : stats.totalMessages}
+              </p>
             </div>
 
             <div className="stat-card">
+              <div className="stat-icon">🟢</div>
               <h3>Đang Trực Tuyến</h3>
-              <p className="stat-number">{stats.onlineUsers}</p>
+              <p className="stat-number">
+                {loading ? '...' : stats.onlineUsers}
+              </p>
             </div>
 
             <div className="stat-card">
+              <div className="stat-icon">🗨️</div>
               <h3>Cuộc Trò Chuyện</h3>
-              <p className="stat-number">{stats.totalConversations}</p>
+              <p className="stat-number">
+                {loading ? '...' : stats.totalConversations}
+              </p>
             </div>
           </div>
 
@@ -69,7 +124,7 @@ class AdminDashboard extends Component {
             <div className="menu-grid">
               <a href="/admin/users" className="menu-card">
                 <h3>👥 Quản Lý Người Dùng</h3>
-                <p>Quản lý người dùng, xem hồ sơ và phân quyền</p>
+                <p>Quản lý người dùng, xem hồ sơ và cập nhật thông tin</p>
               </a>
 
               <a href="/admin/messages" className="menu-card">
@@ -78,6 +133,14 @@ class AdminDashboard extends Component {
               </a>
             </div>
           </div>
+
+          <button 
+            onClick={this.loadStats} 
+            className="btn-refresh"
+            disabled={loading}
+          >
+            {loading ? '⏳ Đang tải...' : '🔄 Làm Mới'}
+          </button>
         </div>
       </div>
     );

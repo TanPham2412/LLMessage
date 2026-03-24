@@ -25,7 +25,7 @@ const MessageActions = ({
   }, [isOpen]);
 
   // Only show for own messages
-  if (!message || message.sender._id !== currentUserId) {
+  if (!message || !message.sender || message.sender._id !== currentUserId) {
     return null;
   }
 

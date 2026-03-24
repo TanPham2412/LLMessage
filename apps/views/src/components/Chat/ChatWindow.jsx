@@ -24,9 +24,9 @@ class ChatWindow extends Component {
       chatTheme: null,
       dragOver: false,
       editingMessage: null,
-      lightboxUrl: null,
-      contextMenu: null, // { message, x, y }
-      pinnedMessageIds: new Set(), // IDs of pinned messages in current conversation
+      lightboxUrl: null, // URL of image shown in fullscreen lightbox
+      recipientDeleted: false, // Track if recipient is deleted
+      // showInfoPanel is now managed by parent ChatHome via props
     };
 
     this.dragCounter = 0;
@@ -144,7 +144,7 @@ class ChatWindow extends Component {
       });
       this.loadTheme(currentConversationId);
       this.checkStatusVisibility();
-      this.loadPinnedMessageIds(currentConversationId);
+      this.checkRecipientExists(); // Check if recipient is deleted when conversation changes
       setTimeout(() => this.scrollToBottom(), 100);
     } else {
       // Same conversation - check for new messages
@@ -219,12 +219,59 @@ class ChatWindow extends Component {
     }
   };
 
+  // Check if recipient (in 1-1 chat) still exists
+  checkRecipientExists = async () => {
+    const { currentConversation } = this.context;
+    const currentUserId = localStorage.getItem('userId');
+    
+    if (!currentConversation) return true;
+    
+    // For group chats, allow sending (you can't really "delete" a group recipient)
+    if (currentConversation.type === 'group') {
+      return true;
+    }
+    
+    // For 1-1 chats, check if the recipient exists
+    const recipient = currentConversation.participants?.find(p => p._id !== currentUserId);
+    
+    if (!recipient) {
+      this.setState({ recipientDeleted: true });
+      return false;
+    }
+    
+    // Check if the recipient's data is still valid (not null or empty after populate)
+    if (!recipient._id) {
+      this.setState({ recipientDeleted: true });
+      return false;
+    }
+    
+    try {
+      // Try to fetch recipient to verify they still exist
+      await api.getUserById(recipient._id);
+      this.setState({ recipientDeleted: false });
+      return true;
+    } catch (error) {
+      // If user not found (404) or any error, mark as deleted
+      console.log('Recipient check failed:', error);
+      this.setState({ recipientDeleted: true });
+      return false;
+    }
+  };
+
   handleSendMessage = async (e) => {
     e.preventDefault();
     
     const { message, selectedFile } = this.state;
 
     if (!message.trim() && !selectedFile) return;
+
+    // Check if recipient exists before sending
+    const recipientExists = await this.checkRecipientExists();
+    
+    if (!recipientExists) {
+      alert('❌ Người dùng này đã bị xóa, không thể gửi tin nhắn!');
+      return;
+    }
 
     await this.context.sendMessage(
       message,
@@ -968,17 +1015,11 @@ class ChatWindow extends Component {
               key={msg._id}
               data-message-id={msg._id}
               className={`message ${
-                msg.sender._id === currentUserId ? 'message-sent' : 'message-received'
-              } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''}`}
-              onContextMenu={(e) => {
-                if (msg.isBlocked) return;
-                e.preventDefault();
-                e.stopPropagation();
-                this.setState({ contextMenu: { message: msg, x: e.clientX, y: e.clientY } });
-              }}
+                msg.sender?._id === currentUserId ? 'message-sent' : 'message-received'
+              } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''} ${msg.sender?.isDeleted ? 'message-sender-deleted' : ''}`}
             >
               {/* Avatar + tên người gửi trong nhóm (chỉ tin nhắn nhận được) */}
-              {currentConversation.type === 'group' && msg.sender._id !== currentUserId && (
+              {currentConversation.type === 'group' && msg.sender?._id !== currentUserId && (
                 <div className="message-sender-info">
                   <img
                     className="message-sender-avatar"
@@ -1061,6 +1102,18 @@ class ChatWindow extends Component {
           <div ref={this.messagesEndRef} />
         </div>
 
+        {this.state.recipientDeleted && currentConversation.type !== 'group' && (
+          <div className="recipient-deleted-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="8" y1="15" x2="16" y2="15"/>
+              <line x1="9" y1="9" x2="9" y2="9.01"/>
+              <line x1="15" y1="9" x2="15" y2="9.01"/>
+            </svg>
+            <span>❌ Người dùng này đã bị xóa, không thể gửi tin nhắn</span>
+          </div>
+        )}
+
         <form 
           className="chat-input-form"
           onSubmit={this.handleSendMessage}
@@ -1091,7 +1144,13 @@ class ChatWindow extends Component {
               accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xlsx,.xls,.ppt,.pptx,.rar,.7z,.mp3,.mp4,.mov,.avi,.csv"
               style={{ display: 'none' }}
             />
-            <label htmlFor="file-upload" className="btn-file" title="Đính kèm file">
+            <label 
+              htmlFor="file-upload" 
+              className={`btn-file ${this.state.recipientDeleted ? 'btn-file-disabled' : ''}`}
+              title={this.state.recipientDeleted ? 'Người dùng đã bị xóa' : 'Đính kèm file'}
+              onClick={(e) => this.state.recipientDeleted && e.preventDefault()}
+              style={{pointerEvents: this.state.recipientDeleted ? 'none' : 'auto'}}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
               </svg>
@@ -1101,11 +1160,12 @@ class ChatWindow extends Component {
               type="text"
               value={message}
               onChange={this.handleMessageChange}
-              placeholder="Aa"
+              placeholder={this.state.recipientDeleted ? 'Người dùng đã bị xóa' : 'Aa'}
               className="message-input"
+              disabled={this.state.recipientDeleted}
             />
 
-            <button type="submit" className="btn-send" disabled={!message.trim() && !selectedFile} title="Gửi">
+            <button type="submit" className="btn-send" disabled={(!message.trim() && !selectedFile) || this.state.recipientDeleted} title={this.state.recipientDeleted ? 'Người dùng đã bị xóa' : 'Gửi'}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>
