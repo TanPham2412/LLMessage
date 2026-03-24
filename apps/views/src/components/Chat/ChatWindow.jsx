@@ -5,6 +5,7 @@ import { getTimeAgo } from '../../utils/timeUtils';
 import api from '../../services/api.js';
 import ConversationInfo, { THEMES } from './ConversationInfo.jsx';
 import MessageContextMenu from './MessageContextMenu.jsx';
+import MessageActions from './MessageActions.jsx';
 import EditMessageModal from './EditMessageModal.jsx';
 
 class ChatWindow extends Component {
@@ -24,9 +25,11 @@ class ChatWindow extends Component {
       chatTheme: null,
       dragOver: false,
       editingMessage: null,
-      lightboxUrl: null,
-      contextMenu: null, // { message, x, y }
-      pinnedMessageIds: new Set(), // IDs of pinned messages in current conversation
+      lightboxUrl: null, // URL of image shown in fullscreen lightbox
+      recipientDeleted: false, // Track if recipient is deleted
+      contextMenu: null, // For right-click context menu
+      pinnedMessageIds: new Set(), // For tracking pinned messages
+      // showInfoPanel is now managed by parent ChatHome via props
     };
 
     this.dragCounter = 0;
@@ -144,7 +147,8 @@ class ChatWindow extends Component {
       });
       this.loadTheme(currentConversationId);
       this.checkStatusVisibility();
-      this.loadPinnedMessageIds(currentConversationId);
+      this.checkRecipientExists(); // Check if recipient is deleted when conversation changes
+      this.loadPinnedMessageIds(currentConversationId); // Load pinned messages for the new conversation
       setTimeout(() => this.scrollToBottom(), 100);
     } else {
       // Same conversation - check for new messages
@@ -219,12 +223,59 @@ class ChatWindow extends Component {
     }
   };
 
+  // Check if recipient (in 1-1 chat) still exists
+  checkRecipientExists = async () => {
+    const { currentConversation } = this.context;
+    const currentUserId = localStorage.getItem('userId');
+    
+    if (!currentConversation) return true;
+    
+    // For group chats, allow sending (you can't really "delete" a group recipient)
+    if (currentConversation.type === 'group') {
+      return true;
+    }
+    
+    // For 1-1 chats, check if the recipient exists
+    const recipient = currentConversation.participants?.find(p => p._id !== currentUserId);
+    
+    if (!recipient) {
+      this.setState({ recipientDeleted: true });
+      return false;
+    }
+    
+    // Check if the recipient's data is still valid (not null or empty after populate)
+    if (!recipient._id) {
+      this.setState({ recipientDeleted: true });
+      return false;
+    }
+    
+    try {
+      // Try to fetch recipient to verify they still exist
+      await api.getUserById(recipient._id);
+      this.setState({ recipientDeleted: false });
+      return true;
+    } catch (error) {
+      // If user not found (404) or any error, mark as deleted
+      console.log('Recipient check failed:', error);
+      this.setState({ recipientDeleted: true });
+      return false;
+    }
+  };
+
   handleSendMessage = async (e) => {
     e.preventDefault();
     
     const { message, selectedFile } = this.state;
 
     if (!message.trim() && !selectedFile) return;
+
+    // Check if recipient exists before sending
+    const recipientExists = await this.checkRecipientExists();
+    
+    if (!recipientExists) {
+      alert('❌ Người dùng này đã bị xóa, không thể gửi tin nhắn!');
+      return;
+    }
 
     await this.context.sendMessage(
       message,
@@ -245,9 +296,14 @@ class ChatWindow extends Component {
       if (response.success) {
         // Socket event will auto-update messages, just close modal
         this.setState({ editingMessage: null });
+        console.log('✅ Tin nhắn đã được chỉnh sửa thành công');
+      } else {
+        throw new Error(response.message || 'Lỗi khi chỉnh sửa tin nhắn');
       }
     } catch (error) {
       console.error('Edit message error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi chỉnh sửa tin nhắn';
+      alert('❌ ' + errorMsg);
       throw error;
     }
   };
@@ -257,10 +313,14 @@ class ChatWindow extends Component {
       const response = await api.deleteMessage(messageId);
       if (response.success) {
         // Socket event will auto-update messages
+        console.log('✅ Tin nhắn đã được thu hồi thành công');
+      } else {
+        throw new Error(response.message || 'Lỗi khi thu hồi tin nhắn');
       }
     } catch (error) {
       console.error('Delete message error:', error);
-      alert('Lỗi khi thu hồi tin nhắn: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi thu hồi tin nhắn';
+      alert('❌ ' + errorMsg);
     }
   };
 
@@ -270,10 +330,14 @@ class ChatWindow extends Component {
       if (response.success) {
         const { reloadMessages } = this.context;
         if (reloadMessages) await reloadMessages();
+        console.log('✅ Tin nhắn đã bị xóa khỏi view của bạn');
+      } else {
+        throw new Error(response.message || 'Lỗi khi xóa tin nhắn');
       }
     } catch (error) {
       console.error('Delete for me error:', error);
-      alert('Lỗi khi xóa tin nhắn: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi xóa tin nhắn';
+      alert('❌ ' + errorMsg);
     }
   };
 
@@ -306,6 +370,18 @@ class ChatWindow extends Component {
       el.classList.add('message-highlight');
       setTimeout(() => el.classList.remove('message-highlight'), 2000);
     }
+  };
+
+  handleMessageContextMenu = (e, message) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.setState({
+      contextMenu: {
+        message,
+        x: e.clientX,
+        y: e.clientY
+      }
+    });
   };
 
   loadPinnedMessageIds = async (conversationId) => {
@@ -463,7 +539,7 @@ class ChatWindow extends Component {
     if (participant?.avatar) {
       const avatarUrl = participant.avatar.startsWith('http') 
         ? participant.avatar 
-        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${participant.avatar}`;
+        : `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${participant.avatar}`;
       return <img src={avatarUrl} alt={name} />;
     }
     
@@ -814,7 +890,7 @@ class ChatWindow extends Component {
   };
   render() {
     const { currentConversation, messages, loading } = this.context;
-    const { message, selectedFile, chatTheme, contextMenu } = this.state;
+    const { message, selectedFile, chatTheme, contextMenu, pinnedMessageIds } = this.state;
     const showInfoPanel = this.props.showInfoPanel;
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
 
@@ -839,12 +915,12 @@ class ChatWindow extends Component {
 
     return (
       <>
-      {contextMenu && (
+      {contextMenu && pinnedMessageIds && (
         <MessageContextMenu
           message={contextMenu.message}
           position={{ x: contextMenu.x, y: contextMenu.y }}
           currentUserId={currentUserId}
-          isPinned={this.state.pinnedMessageIds.has(contextMenu.message._id)}
+          isPinned={pinnedMessageIds.has(contextMenu.message._id)}
           onEdit={this.handleEditMessage}
           onDeleteForMe={this.handleDeleteForMe}
           onDeleteForAll={this.handleDeleteMessage}
@@ -968,17 +1044,12 @@ class ChatWindow extends Component {
               key={msg._id}
               data-message-id={msg._id}
               className={`message ${
-                msg.sender._id === currentUserId ? 'message-sent' : 'message-received'
-              } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''}`}
-              onContextMenu={(e) => {
-                if (msg.isBlocked) return;
-                e.preventDefault();
-                e.stopPropagation();
-                this.setState({ contextMenu: { message: msg, x: e.clientX, y: e.clientY } });
-              }}
+                msg.sender?._id === currentUserId ? 'message-sent' : 'message-received'
+              } ${msg.isBlocked ? 'message-blocked' : ''} ${msg.isDeleted ? 'message-deleted' : ''} ${msg.sender?.isDeleted ? 'message-sender-deleted' : ''}`}
+              onContextMenu={(e) => this.handleMessageContextMenu(e, msg)}
             >
               {/* Avatar + tên người gửi trong nhóm (chỉ tin nhắn nhận được) */}
-              {currentConversation.type === 'group' && msg.sender._id !== currentUserId && (
+              {currentConversation.type === 'group' && msg.sender && msg.sender._id !== currentUserId && (
                 <div className="message-sender-info">
                   <img
                     className="message-sender-avatar"
@@ -986,12 +1057,25 @@ class ChatWindow extends Component {
                       msg.sender.avatar && msg.sender.avatar.startsWith('http')
                         ? msg.sender.avatar
                         : msg.sender.avatar
-                        ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${msg.sender.avatar}`
+                        ? `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.sender.avatar}`
                         : `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender.fullName || msg.sender.username || 'U')}&size=60&background=8b5cf6&color=fff`
                     }
                     alt={msg.sender.fullName || msg.sender.username}
                   />
                   <span className="message-sender-name">{msg.sender.fullName || msg.sender.username}</span>
+                </div>
+              )}
+              {/* Nếu msg.sender bị xóa (admin deleted) */}
+              {currentConversation.type === 'group' && !msg.sender && (
+                <div className="message-sender-info">
+                  <div className="message-sender-avatar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                      <path d="M8 12h8"/>
+                    </svg>
+                  </div>
+                  <span className="message-sender-name text-muted">Người dùng đã xóa</span>
                 </div>
               )}
               <div className="message-content">
@@ -1031,17 +1115,17 @@ class ChatWindow extends Component {
                     )}
                     {msg.type === 'image' && (
                       <img
-                        src={`http://localhost:5000${msg.fileUrl}`}
+                        src={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.fileUrl}`}
                         alt="attachment"
                         className="message-image"
                         draggable={false}
-                        onClick={() => this.setState({ lightboxUrl: `http://localhost:5000${msg.fileUrl}` })}
+                        onClick={() => this.setState({ lightboxUrl: `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.fileUrl}` })}
                       />
                     )}
                     {msg.content && <p>{msg.content}</p>}
                     {msg.type === 'file' && msg.fileName && (
                       <a 
-                        href={`http://localhost:5000${msg.fileUrl}`}
+                        href={`${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${msg.fileUrl}`}
                         download
                       >
                         📎 {msg.fileName}
@@ -1053,6 +1137,12 @@ class ChatWindow extends Component {
               <div className="message-time">
                 {msg.isEdited && <span className="edited-indicator" title="Đã chỉnh sửa">chỉnh sửa</span>}
                 {this.formatTime(msg.createdAt)}
+                <MessageActions 
+                  message={msg}
+                  currentUserId={currentUserId}
+                  onEdit={this.handleEditMessage}
+                  onDelete={this.handleDeleteMessage}
+                />
               </div>
 
             </div>
@@ -1060,6 +1150,18 @@ class ChatWindow extends Component {
           })}
           <div ref={this.messagesEndRef} />
         </div>
+
+        {this.state.recipientDeleted && currentConversation.type !== 'group' && (
+          <div className="recipient-deleted-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="8" y1="15" x2="16" y2="15"/>
+              <line x1="9" y1="9" x2="9" y2="9.01"/>
+              <line x1="15" y1="9" x2="15" y2="9.01"/>
+            </svg>
+            <span>❌ Người dùng này đã bị xóa, không thể gửi tin nhắn</span>
+          </div>
+        )}
 
         <form 
           className="chat-input-form"
@@ -1091,7 +1193,13 @@ class ChatWindow extends Component {
               accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xlsx,.xls,.ppt,.pptx,.rar,.7z,.mp3,.mp4,.mov,.avi,.csv"
               style={{ display: 'none' }}
             />
-            <label htmlFor="file-upload" className="btn-file" title="Đính kèm file">
+            <label 
+              htmlFor="file-upload" 
+              className={`btn-file ${this.state.recipientDeleted ? 'btn-file-disabled' : ''}`}
+              title={this.state.recipientDeleted ? 'Người dùng đã bị xóa' : 'Đính kèm file'}
+              onClick={(e) => this.state.recipientDeleted && e.preventDefault()}
+              style={{pointerEvents: this.state.recipientDeleted ? 'none' : 'auto'}}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
               </svg>
@@ -1101,11 +1209,12 @@ class ChatWindow extends Component {
               type="text"
               value={message}
               onChange={this.handleMessageChange}
-              placeholder="Aa"
+              placeholder={this.state.recipientDeleted ? 'Người dùng đã bị xóa' : 'Aa'}
               className="message-input"
+              disabled={this.state.recipientDeleted}
             />
 
-            <button type="submit" className="btn-send" disabled={!message.trim() && !selectedFile} title="Gửi">
+            <button type="submit" className="btn-send" disabled={(!message.trim() && !selectedFile) || this.state.recipientDeleted} title={this.state.recipientDeleted ? 'Người dùng đã bị xóa' : 'Gửi'}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>

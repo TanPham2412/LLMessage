@@ -79,6 +79,40 @@ router.get("/online", async function(req, res) {
     }
 });
 
+// GET /admin/stats - Admin dashboard statistics (Admin only)
+router.get("/admin/stats", isAdmin, async function(req, res) {
+    try {
+        var User = require(global.__basedir + "/apps/Entity/User");
+        var Message = require(global.__basedir + "/apps/Entity/Message");
+        var Conversation = require(global.__basedir + "/apps/Entity/Conversation");
+
+        // Get total users
+        var totalUsers = await User.countDocuments();
+
+        // Get total messages
+        var totalMessages = await Message.countDocuments({ isDeleted: false });
+
+        // Get online users count
+        var onlineUsers = await User.countDocuments({ isOnline: true });
+
+        // Get total conversations
+        var totalConversations = await Conversation.countDocuments({ isActive: true });
+
+        res.json({
+            success: true,
+            data: {
+                totalUsers: totalUsers,
+                totalMessages: totalMessages,
+                onlineUsers: onlineUsers,
+                totalConversations: totalConversations
+            }
+        });
+    } catch (error) {
+        console.error('Get admin stats error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch admin stats', error: error.message });
+    }
+});
+
 // GET /:id - Get user by ID
 router.get("/:id", async function(req, res) {
     try {

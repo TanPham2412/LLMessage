@@ -73,9 +73,15 @@ class ConversationList extends Component {
     
     // Nếu có avatar, hiển thị ảnh
     if (participant?.avatar) {
-      const avatarUrl = participant.avatar.startsWith('http') 
-        ? participant.avatar 
-        : `${process.env.REACT_APP_API_URL.replace('/api', '')}${participant.avatar}`;
+      let avatarUrl;
+      if (participant.avatar.startsWith('http')) {
+        avatarUrl = participant.avatar;
+      } else {
+        // Tạo URL từ API URL
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+        const baseUrl = apiUrl.replace('/api', '');
+        avatarUrl = `${baseUrl}${participant.avatar}`;
+      }
       return <img src={avatarUrl} alt={name} />;
     }
     

@@ -1078,7 +1078,7 @@ class ConversationInfo extends Component {
     if (!participant) return null;
     if (participant.avatar) {
       if (participant.avatar.startsWith('http')) return participant.avatar;
-      return `${process.env.REACT_APP_API_URL.replace('/api', '')}${participant.avatar}`;
+      return `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${participant.avatar}`;
     }
     const name = participant.fullName || participant.username || 'U';
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=200&background=8b5cf6&color=fff`;

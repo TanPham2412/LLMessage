@@ -310,7 +310,7 @@ class FriendNotifications extends Component {
                         <img 
                           src={request.from.avatar.startsWith('http') 
                             ? request.from.avatar 
-                            : `${process.env.REACT_APP_API_URL.replace('/api', '')}${request.from.avatar}`
+                            : `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${request.from.avatar}`
                           } 
                           alt={request.from.username} 
                         />
@@ -374,7 +374,7 @@ class FriendNotifications extends Component {
                         <img 
                           src={notification.from.avatar.startsWith('http') 
                             ? notification.from.avatar 
-                            : `${process.env.REACT_APP_API_URL.replace('/api', '')}${notification.from.avatar}`
+                            : `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${notification.from.avatar}`
                           } 
                           alt="" 
                         />

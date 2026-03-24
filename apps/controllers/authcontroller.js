@@ -36,6 +36,14 @@ router.post("/register", async function(req, res) {
         var authService = new AuthService();
         var { username, email, password, fullName } = req.body;
 
+        // Validate input
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username, email, and password are required'
+            });
+        }
+
         var User = require(global.__basedir + "/apps/Entity/User");
         var existingUser = await User.findOne({
             $or: [{ email: email }, { username: username }]
@@ -50,7 +58,13 @@ router.post("/register", async function(req, res) {
 
         var result = await authService.register(username, email, password, fullName);
         if (!result.success) {
+            console.error('Register service returned error:', result.message);
             return res.status(400).json({ success: false, message: result.message });
+        }
+
+        if (!result.user || !result.user._id) {
+            console.error('Register service returned user but no _id:', result.user);
+            return res.status(500).json({ success: false, message: 'User created but missing ID' });
         }
 
         var token = authService.generateToken(result.user._id);
@@ -60,8 +74,12 @@ router.post("/register", async function(req, res) {
             data: { user: result.user.getPublicProfile(), token: token }
         });
     } catch (error) {
-        console.error('Register error:', error);
-        res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
+        console.error('Register controller error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Registration failed', 
+            error: error.message 
+        });
     }
 });
 
@@ -116,8 +134,11 @@ router.post("/google", async function(req, res) {
         var { credential } = req.body;
 
         if (!credential) {
+            console.error('Google auth: Missing credential');
             return res.status(400).json({ success: false, message: 'Google credential is required' });
         }
+
+        console.log('Google auth: Verifying token with client ID:', config.google.clientId);
 
         var ticket = await googleClient.verifyIdToken({
             idToken: credential,
@@ -130,9 +151,12 @@ router.post("/google", async function(req, res) {
         var name = payload.name;
         var picture = payload.picture;
 
+        console.log('Google auth: Verified user - email:', email, 'name:', name);
+
         var user = await authService.getUserForGoogleAuth(googleId, email);
 
         if (user) {
+            console.log('Google auth: Existing user found:', user._id);
             if (!user.googleId) {
                 user.googleId = googleId;
                 user.authProvider = 'google';
@@ -145,6 +169,7 @@ router.post("/google", async function(req, res) {
             user.lastSeen = Date.now();
             await user.save();
         } else {
+            console.log('Google auth: Creating new user from Google auth');
             var User = require(global.__basedir + "/apps/Entity/User");
             var username = email.split('@')[0] + '_' + Math.random().toString(36).substring(2, 7);
             user = await User.create({
@@ -156,6 +181,12 @@ router.post("/google", async function(req, res) {
                 authProvider: 'google',
                 isOnline: true
             });
+            console.log('Google auth: New user created:', user._id);
+        }
+
+        if (!user || !user._id) {
+            console.error('Google auth: User object invalid after creation/update');
+            return res.status(500).json({ success: false, message: 'Failed to process Google authentication' });
         }
 
         if (user.twoFactorEnabled) {

@@ -182,7 +182,7 @@ class PublicProfile extends Component {
     const avatarUrl = user.avatar && user.avatar.startsWith('http')
       ? user.avatar
       : user.avatar
-      ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${user.avatar}`
+      ? `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.avatar}`
       : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || user.username)}&size=200&background=8b5cf6&color=fff`;
 
     return (

@@ -41,15 +41,27 @@ class AuthService {
             return { success: false, message: 'User with this email or username already exists' };
         }
 
-        var user = await this.userRepository.insertUser({
-            username: username,
-            email: email,
-            password: password,
-            fullName: fullName || username
-        });
+        try {
+            var user = await this.userRepository.insertUser({
+                username: username,
+                email: email,
+                password: password,
+                fullName: fullName || username,
+                authProvider: 'local'
+            });
 
-        var token = this.generateToken(user._id);
-        return { success: true, user: user, token: token };
+            if (!user || !user._id) {
+                console.error('Insert user failed - no user document returned');
+                return { success: false, message: 'Failed to create user' };
+            }
+
+            console.log('User registered successfully:', user._id);
+            var token = this.generateToken(user._id);
+            return { success: true, user: user, token: token };
+        } catch (error) {
+            console.error('Register error in AuthService:', error.message, error);
+            return { success: false, message: error.message || 'Registration failed' };
+        }
     }
 
     async login(identifier) {

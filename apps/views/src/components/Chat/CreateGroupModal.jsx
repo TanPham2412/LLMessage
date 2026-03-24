@@ -175,7 +175,7 @@ class CreateGroupModal extends Component {
                             src={friend.avatar && friend.avatar.startsWith('http') 
                               ? friend.avatar 
                               : friend.avatar
-                              ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${friend.avatar}`
+                              ? `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${friend.avatar}`
                               : `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.fullName || friend.username)}&size=80&background=8b5cf6&color=fff`
                             } 
                             alt={friend.fullName} 
@@ -253,7 +253,7 @@ class CreateGroupModal extends Component {
                         src={friend.avatar && friend.avatar.startsWith('http') 
                           ? friend.avatar 
                           : friend.avatar
-                          ? `${process.env.REACT_APP_API_URL.replace('/api', '')}${friend.avatar}`
+                          ? `${(process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace('/api', '')}${friend.avatar}`
                           : `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.fullName || friend.username)}&size=80&background=8b5cf6&color=fff`
                         } 
                         alt={friend.fullName} 

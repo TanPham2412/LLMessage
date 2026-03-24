@@ -145,6 +145,11 @@ class APIService {
     return response.data;
   }
 
+  async getDashboardStats() {
+    const response = await this.client.get('/users/admin/stats');
+    return response.data;
+  }
+
   // Các phương thức quản lý bạn bè
   async sendFriendRequest(recipientId) {
     const response = await this.client.post('/friends/request', { recipientId });
