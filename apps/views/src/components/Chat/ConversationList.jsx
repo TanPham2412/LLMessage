@@ -14,7 +14,8 @@ class ConversationList extends Component {
         x: 0,
         y: 0,
         conversation: null
-      }
+      },
+      showRestrictedSection: false,
     };
   }
 
@@ -130,46 +131,24 @@ class ConversationList extends Component {
           break;
         }
 
-        case 'restrict':
+        case 'restrict': {
           const participant = this.getParticipant(conversation);
           if (participant) {
             const isAlreadyRestricted = this.isRestricted(participant._id);
-            
             if (isAlreadyRestricted) {
-              // Unrestrict
-              const confirmUnrestrict = window.confirm(
-                `Bạn có chắc muốn bỏ hạn chế ${participant.fullName || participant.username}?`
-              );
-              if (confirmUnrestrict) {
-                try {
-                  await api.unrestrictUser(participant._id);
-                  await this.context.loadBlockedAndRestricted();
-                  alert('Đã bỏ hạn chế người dùng này');
-                } catch (err) {
-                  console.error('Unrestrict error:', err);
-                  const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra';
-                  alert(errorMsg);
-                }
-              }
+              await api.unrestrictUser(participant._id);
             } else {
-              // Restrict
-              const confirmRestrict = window.confirm(
-                `Bạn có chắc muốn hạn chế ${participant.fullName || participant.username}?\n\nHọ sẽ không thể thấy trạng thái online/offline của bạn.`
-              );
-              if (confirmRestrict) {
-                try {
-                  await api.restrictUser(participant._id);
-                  await this.context.loadBlockedAndRestricted();
-                  alert('Đã hạn chế người dùng này');
-                } catch (err) {
-                  console.error('Restrict error:', err);
-                  const errorMsg = err.response?.data?.message || 'Có lỗi xảy ra khi hạn chế người dùng';
-                  alert(errorMsg);
-                }
+              await api.restrictUser(participant._id);
+              // If this conversation is currently open, close it
+              if (this.context.currentConversation?._id === conversation._id) {
+                this.context.selectConversation(null);
               }
             }
+            await this.context.loadBlockedAndRestricted();
+            await this.context.loadConversations();
           }
           break;
+        }
 
         case 'block':
           const participantToBlock = this.getParticipant(conversation);
@@ -341,8 +320,8 @@ class ConversationList extends Component {
   };
 
   render() {
-    const { conversations, currentConversation, loading, onlineUsers, unreadCounts = {}, friends = [] } = this.context;
-    const { contextMenu } = this.state;
+    const { conversations, currentConversation, loading, onlineUsers, unreadCounts = {}, friends = [], restrictedUsers = [] } = this.context;
+    const { contextMenu, showRestrictedSection } = this.state;
 
     const searchQuery = (this.props.searchQuery || '').trim().toLowerCase();
     const isSearching = searchQuery.length > 0;
@@ -355,8 +334,19 @@ class ConversationList extends Component {
         })
       : [];
 
-    // Normal mode: show all conversations
-    const filteredConversations = isSearching ? [] : conversations;
+    // Helper: is this conversation with a restricted user?
+    const isConvRestricted = (conv) => {
+      if (conv.type === 'group') return false;
+      const p = this.getParticipant(conv);
+      if (!p) return false;
+      const pId = p._id?.toString?.() || p._id;
+      return restrictedUsers.some(u => (u._id?.toString?.() || u._id) === pId);
+    };
+
+    // Main list: only non-restricted conversations
+    const normalConvs = isSearching ? [] : conversations.filter(c => !isConvRestricted(c));
+    // Restricted section: conversations with restricted users
+    const restrictedConvs = conversations.filter(c => isConvRestricted(c));
 
     const noResults = isSearching && matchingFriends.length === 0;
 
@@ -382,9 +372,9 @@ class ConversationList extends Component {
         )}
 
         {/* Normal conversation list (no search) */}
-        {filteredConversations.length > 0 && (
+        {normalConvs.length > 0 && (
           <div className="conversation-items">
-            {filteredConversations.map((conversation) => {
+            {normalConvs.map((conversation) => {
               const participant = this.getParticipant(conversation);
               const isOnline = participant ? onlineUsers.has(participant._id) : false;
               const isGroup = conversation.type === 'group';
@@ -433,6 +423,70 @@ class ConversationList extends Component {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Restricted section */}
+        {!isSearching && restrictedConvs.length > 0 && (
+          <div className="restricted-section">
+            <button
+              className="restricted-section-toggle"
+              onClick={() => this.setState(prev => ({ showRestrictedSection: !prev.showRestrictedSection }))}
+            >
+              <span className="restricted-section-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  <path d="M18.63 13A18 18 0 0 1 18 8 6 6 0 0 0 6.06 8c0 .2-.04.4-.06.6A18.13 18.13 0 0 1 3 19h15l.63-6z"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </span>
+              <span className="restricted-section-label">Hạn chế ({restrictedConvs.length})</span>
+              <span className={`restricted-chevron ${showRestrictedSection ? 'open' : ''}`}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </span>
+            </button>
+            {showRestrictedSection && (
+              <div className="conversation-items restricted-items">
+                {restrictedConvs.map((conversation) => {
+                  const participant = this.getParticipant(conversation);
+                  const isOnline = participant ? onlineUsers.has(participant._id) : false;
+                  const unreadCount = unreadCounts[conversation._id] || 0;
+                  const hasUnread = unreadCount > 0;
+                  return (
+                    <div
+                      key={conversation._id}
+                      className={`conversation-item restricted-conv-item ${
+                        currentConversation?._id === conversation._id ? 'active' : ''
+                      } ${hasUnread ? 'has-unread' : ''}`}
+                      onClick={() => this.handleSelectConversation(conversation)}
+                      onContextMenu={(e) => this.handleContextMenu(e, conversation)}
+                    >
+                      <div className={`conversation-avatar ${isOnline ? 'online' : ''}`}>
+                        {this.getConversationAvatar(conversation)}
+                      </div>
+                      <div className="conversation-info">
+                        <div className="conversation-name">
+                          {this.getConversationName(conversation)}
+                        </div>
+                        <div className={`conversation-last-message ${hasUnread ? 'unread' : ''}`}>
+                          {this.getLastMessagePreview(conversation)}
+                        </div>
+                      </div>
+                      <div className="conversation-meta">
+                        <div className="conversation-time">
+                          {this.formatTime(conversation.lastMessageAt)}
+                        </div>
+                        {hasUnread && (
+                          <div className="unread-badge">{unreadCount}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
