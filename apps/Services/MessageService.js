@@ -300,7 +300,24 @@ class MessageService {
         var conversation = await this.conversationRepository.findById(conversationId);
         if (!conversation) return { success: false, message: 'Conversation not found' };
         if (!conversation.hasParticipant(userId)) return { success: false, message: 'Not a participant', forbidden: true };
-        var results = await this.messageRepository.searchByContent(conversationId, query);
+
+        // Only search messages created after the user's conversation deletion timestamp
+        var deletedInfo = conversation.deletedBy.find(function(item) {
+            var itemUserId = item.user ? item.user.toString() : item.toString();
+            return itemUserId === userId.toString();
+        });
+        var afterDate = (deletedInfo && deletedInfo.deletedAt) ? deletedInfo.deletedAt : null;
+
+        var results = await this.messageRepository.searchByContent(conversationId, query, afterDate);
+
+        // Also filter out messages deleted for this user specifically
+        results = results.filter(function(msg) {
+            if (msg.deletedFor && msg.deletedFor.some(function(id) { return id.toString() === userId.toString(); })) {
+                return false;
+            }
+            return true;
+        });
+
         return { success: true, data: results };
     }
 

@@ -5,6 +5,7 @@ class ConversationContextMenu extends Component {
   constructor(props) {
     super(props);
     this.menuRef = React.createRef();
+    this.state = { showMuteOptions: false };
   }
 
   componentDidMount() {
@@ -35,7 +36,8 @@ class ConversationContextMenu extends Component {
   };
 
   render() {
-    const { x, y, conversation, isPinned, isRestricted, isBlocked } = this.props;
+    const { x, y, conversation, isPinned, isRestricted, isBlocked, isMuted } = this.props;
+    const { showMuteOptions } = this.state;
     const isGroup = conversation?.type === 'group';
 
     return (
@@ -59,6 +61,47 @@ class ConversationContextMenu extends Component {
           <span className="context-menu-text">{isPinned ? 'Bỏ ghim' : 'Ghim'}</span>
         </div>
 
+        {/* Mute / Unmute notifications */}
+        {isMuted ? (
+          <div className="context-menu-item" onClick={() => this.handleAction('unmute')}>
+            <span className="context-menu-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </span>
+            <span className="context-menu-text">Bật thông báo</span>
+          </div>
+        ) : (
+          <>
+            <div className="context-menu-item" onClick={() => this.setState(s => ({ showMuteOptions: !s.showMuteOptions }))}>
+              <span className="context-menu-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  <path d="M18.63 13A18 18 0 0 1 18 8 6 6 0 0 0 6.06 8c0 .2-.04.4-.06.6A18.13 18.13 0 0 1 3 19h15l.63-6z"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </span>
+              <span className="context-menu-text">Tắt thông báo</span>
+              <span className="context-menu-chevron">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  {showMuteOptions
+                    ? <polyline points="18 15 12 9 6 15"/>
+                    : <polyline points="6 9 12 15 18 9"/>}
+                </svg>
+              </span>
+            </div>
+            {showMuteOptions && (
+              <div className="context-menu-mute-options">
+                <div className="context-menu-mute-option" onClick={() => this.handleAction('mute:15')}>15 phút</div>
+                <div className="context-menu-mute-option" onClick={() => this.handleAction('mute:60')}>1 giờ</div>
+                <div className="context-menu-mute-option" onClick={() => this.handleAction('mute:480')}>8 giờ</div>
+                <div className="context-menu-mute-option" onClick={() => this.handleAction('mute:forever')}>Cho đến khi bật lại</div>
+              </div>
+            )}
+          </>
+        )}
+
         {!isGroup && (
           <div className="context-menu-item" onClick={() => this.handleAction('createGroup')}>
             <span className="context-menu-icon">
@@ -78,10 +121,10 @@ class ConversationContextMenu extends Component {
         {!isGroup && (
           <div className="context-menu-item" onClick={() => this.handleAction('restrict')}>
             <span className="context-menu-icon">
+              {/* Clock icon — "hạn chế thời gian" / restrict */}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                <path d="M18.63 13A18 18 0 0 1 18 8 6 6 0 0 0 6.06 8c0 .2-.04.4-.06.6A18.13 18.13 0 0 1 3 19h15l.63-6z"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
               </svg>
             </span>
             <span className="context-menu-text">{isRestricted ? 'Bỏ hạn chế' : 'Hạn chế'}</span>
