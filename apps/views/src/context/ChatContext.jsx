@@ -629,6 +629,25 @@ export class ChatProvider extends Component {
     }
   };
 
+  playNotificationSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.28, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.45);
+    } catch (e) { /* silently ignore */ }
+  };
+
   handleNewMessage = (message) => {
     // Lấy userId trực tiếp (giờ đã được lưu riêng trong AuthContext)
     const currentUserId = localStorage.getItem('userId');
@@ -659,6 +678,13 @@ export class ChatProvider extends Component {
       ? message.conversation._id?.toString() 
       : message.conversation?.toString();
     const currentConvId = currentConversation?._id?.toString();
+
+    // Play sound if tab is not active and conversation is not muted
+    const muteVal = localStorage.getItem(`mute_${messageConvId}`);
+    const isMuted = muteVal === 'forever' || (muteVal && new Date(muteVal) > new Date());
+    if (!isMuted && (document.hidden || document.visibilityState === 'hidden')) {
+      this.playNotificationSound();
+    }
 
     console.log('🔍 Comparing conversation IDs:', {
       messageConvId,

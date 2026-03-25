@@ -214,6 +214,21 @@ class ConversationList extends Component {
           break;
 
         default:
+          if (action && action.startsWith('mute:')) {
+            const duration = action.split(':')[1];
+            const key = `mute_${conversation._id}`;
+            if (duration === 'forever') {
+              localStorage.setItem(key, 'forever');
+            } else {
+              const minutes = parseInt(duration, 10);
+              const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+              localStorage.setItem(key, until);
+            }
+            this.forceUpdate();
+          } else if (action === 'unmute') {
+            localStorage.removeItem(`mute_${conversation._id}`);
+            this.forceUpdate();
+          }
           break;
       }
     } catch (error) {
@@ -225,6 +240,13 @@ class ConversationList extends Component {
   isPinned = (conversation) => {
     const currentUserId = JSON.parse(localStorage.getItem('user'))?._id;
     return conversation.pinnedBy?.includes(currentUserId) || false;
+  };
+
+  isMuted = (conversationId) => {
+    const val = localStorage.getItem(`mute_${conversationId}`);
+    if (!val) return false;
+    if (val === 'forever') return true;
+    return new Date(val) > new Date();
   };
 
   isBlocked = (userId) => {
@@ -549,6 +571,7 @@ class ConversationList extends Component {
               isPinned={this.isPinned(contextMenu.conversation)}
               isRestricted={isRestricted}
               isBlocked={isBlocked}
+              isMuted={this.isMuted(contextMenu.conversation._id)}
               onAction={this.handleContextMenuAction}
               onClose={this.closeContextMenu}
             />

@@ -229,6 +229,8 @@ class ConversationInfo extends Component {
       shareSending: null,
       shareSearch: '',
       shareContactTarget: null,
+      // Mute panel
+      showMuteMenu: false,
     };
   }
 
@@ -236,8 +238,49 @@ class ConversationInfo extends Component {
     this.setState(prev => ({ [section]: !prev[section] }));
   };
 
+  handleGlobalClick = (e) => {
+    if (this.state.showMuteMenu && !e.target.closest('.conv-info-quick-btn-wrap')) {
+      this.setState({ showMuteMenu: false });
+    }
+  };
+
+  componentDidMount() {
+    document.addEventListener('mousedown', this.handleGlobalClick);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('mousedown', this.handleGlobalClick);
+  }
+
   isBlocked = (userId) => (this.context.blockedUsers || []).some(u => (u._id || u) === userId);
   isRestricted = (userId) => (this.context.restrictedUsers || []).some(u => (u._id || u) === userId);
+
+  getMuteState = () => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId) return null;
+    const val = localStorage.getItem(`mute_${convId}`);
+    if (!val) return null;
+    if (val === 'forever') return 'forever';
+    const until = new Date(val);
+    if (until <= new Date()) { localStorage.removeItem(`mute_${convId}`); return null; }
+    return until;
+  };
+
+  handleMuteOption = (duration) => {
+    const convId = this.context.currentConversation?._id;
+    if (!convId) return;
+    if (duration === 'unmute') {
+      localStorage.removeItem(`mute_${convId}`);
+    } else if (duration === 'forever') {
+      localStorage.setItem(`mute_${convId}`, 'forever');
+    } else {
+      const minutes = parseInt(duration, 10);
+      const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+      localStorage.setItem(`mute_${convId}`, until);
+    }
+    this.setState({ showMuteMenu: false });
+    this.forceUpdate();
+  };
 
   handleRestrict = async () => {
     const participant = this.getParticipant();
@@ -1251,14 +1294,42 @@ class ConversationInfo extends Component {
                 </div>
               )}
 
-              <div className="conv-info-quick-btn-wrap">
-                <button className="conv-info-quick-btn" title="Tắt thông báo">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                  </svg>
+              <div className="conv-info-quick-btn-wrap" style={{ position: 'relative' }}>
+                <button
+                  className={`conv-info-quick-btn${this.getMuteState() ? ' active' : ''}`}
+                  title={this.getMuteState() ? 'Bật thông báo' : 'Tắt thông báo'}
+                  onClick={() => this.setState(s => ({ showMuteMenu: !s.showMuteMenu }))}
+                >
+                  {this.getMuteState() ? (
+                    /* Bell-slash: muted */
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                      <path d="M18.63 13A18 18 0 0 1 18 8 6 6 0 0 0 6.06 8c0 .2-.04.4-.06.6A18.13 18.13 0 0 1 3 19h15l.63-6z"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    /* Bell: active */
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                  )}
                 </button>
-                <span>Thông báo</span>
+                <span>{this.getMuteState() ? 'Đã tắt' : 'Thông báo'}</span>
+                {this.state.showMuteMenu && (
+                  <div className="conv-info-mute-menu" onClick={e => e.stopPropagation()}>
+                    {this.getMuteState() ? (
+                      <div className="conv-info-mute-option" onClick={() => this.handleMuteOption('unmute')}>Bật thông báo</div>
+                    ) : (
+                      <>
+                        <div className="conv-info-mute-option" onClick={() => this.handleMuteOption('15')}>15 phút</div>
+                        <div className="conv-info-mute-option" onClick={() => this.handleMuteOption('60')}>1 giờ</div>
+                        <div className="conv-info-mute-option" onClick={() => this.handleMuteOption('480')}>8 giờ</div>
+                        <div className="conv-info-mute-option" onClick={() => this.handleMuteOption('forever')}>Cho đến khi bật lại</div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

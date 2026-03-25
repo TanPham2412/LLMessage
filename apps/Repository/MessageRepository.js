@@ -66,13 +66,17 @@ class MessageRepository {
             .populate('sender', 'username fullName avatar')
             .sort({ createdAt: -1 });
     }
-    async searchByContent(conversationId, query) {
-        return await Message.find({
+    async searchByContent(conversationId, query, afterDate) {
+        var filter = {
             conversation: conversationId,
             isDeleted: false,
             type: 'text',
             content: { $regex: query, $options: 'i' }
-        })
+        };
+        if (afterDate) {
+            filter.createdAt = { $gt: afterDate };
+        }
+        return await Message.find(filter)
             .populate('sender', 'username fullName avatar')
             .sort({ createdAt: -1 })
             .limit(50);

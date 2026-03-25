@@ -1,9 +1,10 @@
 .conversation-context-menu {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  padding: 8px 0;
-  min-width: 200px;
+  background: #1e1535;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(139, 92, 246, 0.12);
+  padding: 6px 0;
+  min-width: 216px;
   overflow: hidden;
   animation: contextMenuFadeIn 0.15s ease-out;
 }
@@ -24,21 +25,21 @@
   align-items: center;
   padding: 10px 16px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
   -webkit-user-select: none;
   user-select: none;
 }
 
 .context-menu-item:hover {
-  background-color: #f0f2f5;
+  background-color: rgba(139, 92, 246, 0.15);
 }
 
 .context-menu-item.warning:hover {
-  background-color: #fff3cd;
+  background-color: rgba(245, 158, 11, 0.12);
 }
 
 .context-menu-item.danger:hover {
-  background-color: #ffe6e6;
+  background-color: rgba(248, 113, 113, 0.12);
 }
 
 .context-menu-icon {
@@ -47,34 +48,77 @@
   justify-content: center;
   margin-right: 12px;
   width: 24px;
-  color: #555;
+  color: #b0b8d0;
   flex-shrink: 0;
 }
 
+.context-menu-item:hover .context-menu-icon {
+  color: #c4b5fd;
+}
+
 .context-menu-item.warning .context-menu-icon {
-  color: #856404;
+  color: #f59e0b;
 }
 
 .context-menu-item.danger .context-menu-icon {
-  color: #d32f2f;
+  color: #f87171;
 }
 
 .context-menu-text {
   font-size: 14px;
-  color: #333;
+  color: #c8d0e8;
   font-weight: 500;
+  flex: 1;
+}
+
+.context-menu-item:hover .context-menu-text {
+  color: #e8e0ff;
 }
 
 .context-menu-item.warning .context-menu-text {
-  color: #856404;
+  color: #f59e0b;
 }
 
 .context-menu-item.danger .context-menu-text {
-  color: #d32f2f;
+  color: #f87171;
+}
+
+.context-menu-chevron {
+  display: flex;
+  align-items: center;
+  color: #7065a0;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.context-menu-item:hover .context-menu-chevron {
+  color: #a78bfa;
+}
+
+.context-menu-mute-options {
+  background: rgba(139, 92, 246, 0.07);
+  border-top: 1px solid rgba(139, 92, 246, 0.12);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  padding: 4px 0;
+}
+
+.context-menu-mute-option {
+  padding: 8px 16px 8px 52px;
+  font-size: 13px;
+  color: #a0a8c0;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.context-menu-mute-option:hover {
+  background-color: rgba(139, 92, 246, 0.18);
+  color: #c4b5fd;
 }
 
 .context-menu-divider {
   height: 1px;
-  background-color: #e4e6eb;
-  margin: 8px 0;
+  background-color: rgba(139, 92, 246, 0.12);
+  margin: 4px 0;
 }
