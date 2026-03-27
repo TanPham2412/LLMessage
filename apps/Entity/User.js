@@ -174,7 +174,39 @@ class User {
                 type: String,
                 enum: ['totp', 'sms', 'email'],
                 default: 'totp'
-            }
+            },
+            warnings: {
+                type: Number,
+                default: 0,
+                min: 0
+            },
+            accountStatus: {
+                type: String,
+                enum: ['active', 'locked', 'deleted'],
+                default: 'active'
+            },
+            warningLockedAt: {
+                type: Date,
+                default: null
+            },
+            violationHistory: [{
+                reason: {
+                    type: String,
+                    enum: ['violence', 'spam', 'explicit', 'scam', 'copyright']
+                },
+                messageId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Message'
+                },
+                warnedAt: {
+                    type: Date,
+                    default: Date.now
+                },
+                adminId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'User'
+                }
+            }]
         }, {
             timestamps: true
         });

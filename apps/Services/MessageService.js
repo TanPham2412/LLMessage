@@ -321,10 +321,10 @@ class MessageService {
         return { success: true, data: results };
     }
 
-    async getAllMessages(page, limit) {
+    async getAllMessages(page, limit, filters = {}) {
         var skip = (page - 1) * limit;
-        var messages = await this.messageRepository.getAllMessages(skip, limit);
-        var count = await this.messageRepository.countAllMessages();
+        var messages = await this.messageRepository.getAllMessagesWithFilters(skip, limit, filters);
+        var count = await this.messageRepository.countAllMessagesWithFilters(filters);
 
         return {
             success: true,
@@ -335,6 +335,26 @@ class MessageService {
                 pages: Math.ceil(count / limit)
             }
         };
+    }
+
+    async restoreMessage(messageId) {
+        var message = await this.messageRepository.findById(messageId);
+        if (!message) {
+            return { success: false, message: 'Message not found' };
+        }
+
+        if (!message.isDeleted) {
+            return { success: false, message: 'Message is not deleted' };
+        }
+
+        message.isDeleted = false;
+        message.deletedAt = null;
+        await message.save();
+
+        await message.populate('sender', 'username fullName avatar');
+        await message.populate('conversation', 'name type');
+
+        return { success: true, data: message };
     }
 
     async findFileMessage(filename) {

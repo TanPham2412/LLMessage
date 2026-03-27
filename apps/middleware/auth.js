@@ -43,6 +43,7 @@ class AuthMiddleware {
         if (req.user && req.user.role === 'admin') {
             next();
         } else {
+            console.warn(`Admin access denied - User ID: ${req.user?.id}, Role: ${req.user?.role}`);
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. Admin only.'

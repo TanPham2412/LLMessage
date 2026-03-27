@@ -349,15 +349,53 @@ router.delete("/:messageId", async function(req, res) {
     }
 });
 
-// GET /admin/all - Admin: Get all messages
+// POST /:messageId/restore - Admin: Restore soft-deleted message
+router.post("/:messageId/restore", authenticate, isAdmin, async function(req, res) {
+    try {
+        var messageService = new MessageService();
+        var { messageId } = req.params;
+
+        var result = await messageService.restoreMessage(messageId);
+
+        if (!result.success) {
+            return res.status(400).json({ success: false, message: result.message });
+        }
+
+        // Emit socket event for real-time update
+        if (socketHandler && socketHandler.io && result.data.conversation) {
+            socketHandler.io.to("conversation:" + result.data.conversation._id).emit('message-restored', {
+                _id: result.data._id,
+                conversation: result.data.conversation._id || result.data.conversation,
+                isDeleted: result.data.isDeleted
+            });
+        }
+
+        res.json({ success: true, message: 'Message restored successfully', data: result.data });
+    } catch (error) {
+        console.error('Restore message error:', error);
+        res.status(500).json({ success: false, message: 'Failed to restore message', error: error.message });
+    }
+});
+
+// GET /admin/all - Admin: Get all messages with filters
 router.get("/admin/all", isAdmin, async function(req, res) {
     try {
         var messageService = new MessageService();
-        var { page, limit } = req.query;
+        var { page, limit, search, type, senderId, conversationId, dateFrom, dateTo, showDeleted } = req.query;
         page = page || 1;
         limit = limit || 50;
 
-        var result = await messageService.getAllMessages(page, limit);
+        var filters = {
+            search: search || null,
+            type: type || 'all',
+            senderId: senderId || null,
+            conversationId: conversationId || null,
+            dateFrom: dateFrom || null,
+            dateTo: dateTo || null,
+            showDeleted: showDeleted || false
+        };
+
+        var result = await messageService.getAllMessages(page, limit, filters);
 
         res.json({
             success: true,

@@ -81,6 +81,109 @@ class MessageRepository {
             .sort({ createdAt: -1 })
             .limit(50);
     }
+
+    async getAllMessagesWithFilters(skip, take, filters = {}) {
+        var query = {};
+
+        // Search in content
+        if (filters.search) {
+            query.$or = [
+                { content: { $regex: filters.search, $options: 'i' } },
+                { fileName: { $regex: filters.search, $options: 'i' } }
+            ];
+        }
+
+        // Filter by message type
+        if (filters.type && filters.type !== 'all') {
+            query.type = filters.type;
+        }
+
+        // Filter by sender
+        if (filters.senderId) {
+            query.sender = filters.senderId;
+        }
+
+        // Filter by conversation
+        if (filters.conversationId) {
+            query.conversation = filters.conversationId;
+        }
+
+        // Filter by date range
+        if (filters.dateFrom || filters.dateTo) {
+            query.createdAt = {};
+            if (filters.dateFrom) {
+                query.createdAt.$gte = new Date(filters.dateFrom);
+            }
+            if (filters.dateTo) {
+                var endDate = new Date(filters.dateTo);
+                endDate.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = endDate;
+            }
+        }
+
+        // Filter by deleted status
+        if (filters.showDeleted === 'true' || filters.showDeleted === true) {
+            query.isDeleted = true;
+        } else {
+            query.isDeleted = false;
+        }
+
+        return await Message.find(query)
+            .populate('sender', 'username fullName avatar')
+            .populate('conversation', 'name type')
+            .sort({ createdAt: -1 })
+            .limit(take)
+            .skip(skip);
+    }
+
+    async countAllMessagesWithFilters(filters = {}) {
+        var query = {};
+
+        // Search in content
+        if (filters.search) {
+            query.$or = [
+                { content: { $regex: filters.search, $options: 'i' } },
+                { fileName: { $regex: filters.search, $options: 'i' } }
+            ];
+        }
+
+        // Filter by message type
+        if (filters.type && filters.type !== 'all') {
+            query.type = filters.type;
+        }
+
+        // Filter by sender
+        if (filters.senderId) {
+            query.sender = filters.senderId;
+        }
+
+        // Filter by conversation
+        if (filters.conversationId) {
+            query.conversation = filters.conversationId;
+        }
+
+        // Filter by date range
+        if (filters.dateFrom || filters.dateTo) {
+            query.createdAt = {};
+            if (filters.dateFrom) {
+                query.createdAt.$gte = new Date(filters.dateFrom);
+            }
+            if (filters.dateTo) {
+                var endDate = new Date(filters.dateTo);
+                endDate.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = endDate;
+            }
+        }
+
+        // Filter by deleted status
+        if (filters.showDeleted === 'true' || filters.showDeleted === true) {
+            query.isDeleted = true;
+        } else {
+            query.isDeleted = false;
+        }
+
+        return await Message.countDocuments(query);
+    }
 }
 
 module.exports = MessageRepository;
