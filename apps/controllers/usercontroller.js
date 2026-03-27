@@ -6,6 +6,73 @@ var { authenticate, isAdmin } = require(global.__basedir + "/apps/middleware/aut
 // All routes require authentication
 router.use(authenticate);
 
+// GET /me - Get current authenticated user info
+router.get("/me", async function(req, res) {
+    try {
+        var userRepository = new UserRepository();
+        var user = await userRepository.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                fullName: user.fullName
+            }
+        });
+    } catch (error) {
+        console.error('Get current user error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch user info', error: error.message });
+    }
+});
+
+// POST /make-admin/:userId - DEBUG ONLY: Make user admin (remove in production)
+router.post("/make-admin/:userId", async function(req, res) {
+    try {
+        var userRepository = new UserRepository();
+        var User = require(global.__basedir + "/apps/Entity/User");
+        var { userId } = req.params;
+
+        var user = await User.findByIdAndUpdate(userId, { role: 'admin' }, { new: true });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        console.log(`User ${user.username} promoted to admin`);
+        res.json({
+            success: true,
+            message: `User ${user.username} is now admin`,
+            data: { id: user._id, username: user.username, role: user.role }
+        });
+    } catch (error) {
+        console.error('Make admin error:', error);
+        res.status(500).json({ success: false, message: 'Failed to make admin', error: error.message });
+    }
+});
+
+// GET /debug/users-roles - DEBUG ONLY: List all users with roles
+router.get("/debug/users-roles", async function(req, res) {
+    try {
+        var User = require(global.__basedir + "/apps/Entity/User");
+        var users = await User.find({}).select('username email role createdAt').limit(20);
+
+        res.json({
+            success: true,
+            data: users
+        });
+    } catch (error) {
+        console.error('Get users roles error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch users', error: error.message });
+    }
+});
+
 // GET / - Get all users (with search and pagination)
 router.get("/", async function(req, res) {
     try {
@@ -175,6 +242,60 @@ router.delete("/:id", isAdmin, async function(req, res) {
     } catch (error) {
         console.error('Delete user error:', error);
         res.status(500).json({ success: false, message: 'Failed to delete user', error: error.message });
+    }
+});
+
+// POST /:userId/warn - Admin only: Send warning to user
+router.post("/:userId/warn", isAdmin, async function(req, res) {
+    try {
+        const { userId } = req.params;
+        const { messageId, reason } = req.body;
+        const adminId = req.user.id;
+
+        // Validate inputs
+        if (!messageId || !reason) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'messageId and reason are required' 
+            });
+        }
+
+        // Validate reason
+        const validReasons = ['violence', 'spam', 'explicit', 'scam', 'copyright'];
+        if (!validReasons.includes(reason)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid reason. Must be one of: ' + validReasons.join(', ') 
+            });
+        }
+
+        var WarningService = require(global.__basedir + "/apps/Services/WarningService");
+        var UserRepository = require(global.__basedir + "/apps/Repository/UserRepository");
+        var NotificationRepository = require(global.__basedir + "/apps/Repository/NotificationRepository");
+
+        var userRepository = new UserRepository();
+        var notificationRepository = new NotificationRepository();
+        var warningService = new WarningService(userRepository, notificationRepository);
+
+        const result = await warningService.sendWarning(userId, messageId, reason, adminId);
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        // Emit socket event to notify the user in real-time
+        var io = req.app.get('io');
+        if (io) {
+            io.to(`user_${userId}`).emit('user-warning', {
+                warningCount: result.data.warningCount,
+                accountStatus: result.data.accountStatus
+            });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Send warning error:', error);
+        res.status(500).json({ success: false, message: 'Failed to send warning', error: error.message });
     }
 });
 

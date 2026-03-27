@@ -329,6 +329,11 @@ class APIService {
     return response.data;
   }
 
+  async restoreMessage(messageId) {
+    const response = await this.client.post(`/messages/${messageId}/restore`);
+    return response.data;
+  }
+
   // Notification methods
   async getNotifications(params = {}) {
     const response = await this.client.get('/notifications', { params });
@@ -357,6 +362,21 @@ class APIService {
 
   async clearAllNotifications() {
     const response = await this.client.delete('/notifications');
+    return response.data;
+  }
+
+  // User warning methods
+  async warnUser(userId, messageId, reason) {
+    const response = await this.client.post(`/users/${userId}/warn`, {
+      messageId,
+      reason
+    });
+    return response.data;
+  }
+
+  // Get current user info
+  async getCurrentUser() {
+    const response = await this.client.get('/users/me');
     return response.data;
   }
 }

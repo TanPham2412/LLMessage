@@ -26,11 +26,11 @@ class Notification {
             sender: {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'User',
-                required: true
+                default: null
             },
             type: {
                 type: String,
-                enum: ['friend-request', 'friend-accepted', 'friend-rejected', 'message', 'system', 'report'],
+                enum: ['friend-request', 'friend-accepted', 'friend-rejected', 'message', 'system', 'report', 'warning', 'error'],
                 required: true
             },
             title: {
