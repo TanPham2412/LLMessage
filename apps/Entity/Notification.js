@@ -15,7 +15,7 @@ class Notification {
 
     }
 
-    static getSchema() {
+    getSchema() {
         var schema = new mongoose.Schema({
             recipient: {
                 type: mongoose.Schema.Types.ObjectId,
@@ -64,9 +64,9 @@ class Notification {
         return schema;
     }
 
-    static getModel() {
+    getModel() {
         return mongoose.model('Notification', this.getSchema());
     }
 }
 
-module.exports = Notification.getModel();
+module.exports = new Notification().getModel();

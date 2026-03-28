@@ -5,3 +5,4 @@ uploads/
 .DS_Store
 views/build/
 views/node_modules/
+Config/Setting.json
