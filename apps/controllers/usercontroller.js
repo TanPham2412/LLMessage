@@ -1,13 +1,19 @@
 var express = require("express");
-var router = express.Router();
 var UserRepository = require(global.__basedir + "/apps/Repository/UserRepository");
 var { authenticate, isAdmin } = require(global.__basedir + "/apps/middleware/auth");
 
-// All routes require authentication
-router.use(authenticate);
+class UserController {
+    constructor() {
+        this.router = express.Router();
+        this.initializeRoutes();
+    }
 
-// GET /me - Get current authenticated user info
-router.get("/me", async function(req, res) {
+    initializeRoutes() {
+        // All routes require authentication
+        this.router.use(authenticate);
+
+        // GET /me - Get current authenticated user info
+        this.router.get("/me", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var user = await userRepository.findById(req.user.id);
@@ -33,7 +39,7 @@ router.get("/me", async function(req, res) {
 });
 
 // POST /make-admin/:userId - DEBUG ONLY: Make user admin (remove in production)
-router.post("/make-admin/:userId", async function(req, res) {
+        this.router.post("/make-admin/:userId", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var User = require(global.__basedir + "/apps/Entity/User");
@@ -58,7 +64,7 @@ router.post("/make-admin/:userId", async function(req, res) {
 });
 
 // GET /debug/users-roles - DEBUG ONLY: List all users with roles
-router.get("/debug/users-roles", async function(req, res) {
+        this.router.get("/debug/users-roles", async function(req, res) {
     try {
         var User = require(global.__basedir + "/apps/Entity/User");
         var users = await User.find({}).select('username email role createdAt').limit(20);
@@ -74,7 +80,7 @@ router.get("/debug/users-roles", async function(req, res) {
 });
 
 // GET / - Get all users (with search and pagination)
-router.get("/", async function(req, res) {
+        this.router.get("/", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var { search, page, limit } = req.query;
@@ -114,7 +120,7 @@ router.get("/", async function(req, res) {
 });
 
 // GET /search - Search users
-router.get("/search", async function(req, res) {
+        this.router.get("/search", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var { query } = req.query;
@@ -134,7 +140,7 @@ router.get("/search", async function(req, res) {
 });
 
 // GET /online - Get online users
-router.get("/online", async function(req, res) {
+        this.router.get("/online", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var users = await userRepository.getOnlineUsers();
@@ -147,7 +153,7 @@ router.get("/online", async function(req, res) {
 });
 
 // GET /admin/stats - Admin dashboard statistics (Admin only)
-router.get("/admin/stats", isAdmin, async function(req, res) {
+        this.router.get("/admin/stats", isAdmin, async function(req, res) {
     try {
         var User = require(global.__basedir + "/apps/Entity/User");
         var Message = require(global.__basedir + "/apps/Entity/Message");
@@ -181,7 +187,7 @@ router.get("/admin/stats", isAdmin, async function(req, res) {
 });
 
 // GET /:id - Get user by ID
-router.get("/:id", async function(req, res) {
+        this.router.get("/:id", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var { id } = req.params;
@@ -202,7 +208,7 @@ router.get("/:id", async function(req, res) {
 });
 
 // PUT /:id - Admin only: Update user
-router.put("/:id", isAdmin, async function(req, res) {
+        this.router.put("/:id", isAdmin, async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var { id } = req.params;
@@ -227,7 +233,7 @@ router.put("/:id", isAdmin, async function(req, res) {
 });
 
 // DELETE /:id - Admin only: Delete user
-router.delete("/:id", isAdmin, async function(req, res) {
+        this.router.delete("/:id", isAdmin, async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var { id } = req.params;
@@ -246,7 +252,7 @@ router.delete("/:id", isAdmin, async function(req, res) {
 });
 
 // POST /:userId/warn - Admin only: Send warning to user
-router.post("/:userId/warn", isAdmin, async function(req, res) {
+        this.router.post("/:userId/warn", isAdmin, async function(req, res) {
     try {
         const { userId } = req.params;
         const { messageId, reason } = req.body;
@@ -299,4 +305,11 @@ router.post("/:userId/warn", isAdmin, async function(req, res) {
     }
 });
 
-module.exports = router;
+    }
+
+    getRouter() {
+        return this.router;
+    }
+}
+
+module.exports = new UserController().getRouter();

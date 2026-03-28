@@ -1,6 +1,6 @@
 var jwt = require('jsonwebtoken');
 var User = require(global.__basedir + "/apps/Entity/User");
-var config = require(global.__basedir + "/Config/Setting.json");
+var config = require(global.__basedir + "/Config/config");
 
 class AuthMiddleware {
     constructor() {

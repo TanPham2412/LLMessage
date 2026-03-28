@@ -1,6 +1,6 @@
 var UserRepository = require(global.__basedir + "/apps/Repository/UserRepository");
 var jwt = require('jsonwebtoken');
-var config = require(global.__basedir + "/Config/Setting.json");
+var config = require(global.__basedir + "/Config/config");
 
 class AuthService {
     userRepository;

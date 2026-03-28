@@ -1,26 +1,23 @@
 var mongoose = require('mongoose');
-var config = require(global.__basedir + "/Config/Setting.json");
+var config = require(global.__basedir + "/Config/config");
 
 class DatabaseConnection {
     url;
     options;
 
     constructor() {
-
-    }
-
-    static getUrl() {
-        this.url = config.mongodb.uri;
-        return this.url;
-    }
-
-    static async connect() {
         this.url = config.mongodb.uri;
         this.options = {
             useNewUrlParser: true,
             useUnifiedTopology: true
         };
+    }
 
+    getUrl() {
+        return this.url;
+    }
+
+    async connect() {
         try {
             await mongoose.connect(this.url, this.options);
             console.log("MongoDB connected successfully");
@@ -44,7 +41,7 @@ class DatabaseConnection {
         }
     }
 
-    static getConnection() {
+    getConnection() {
         return mongoose.connection;
     }
 }

@@ -18,7 +18,7 @@ class Conversation {
 
     }
 
-    static getSchema() {
+    getSchema() {
         var schema = new mongoose.Schema({
             participants: [{
                 type: mongoose.Schema.Types.ObjectId,
@@ -96,9 +96,9 @@ class Conversation {
         return schema;
     }
 
-    static getModel() {
+    getModel() {
         return mongoose.model('Conversation', this.getSchema());
     }
 }
 
-module.exports = Conversation.getModel();
+module.exports = new Conversation().getModel();
