@@ -150,6 +150,21 @@ class APIService {
     return response.data;
   }
 
+  async getViolationStats(params = {}) {
+    const response = await this.client.get('/users/admin/violations', { params });
+    return response.data;
+  }
+
+  async getAllUsersWithStatus(params = {}) {
+    const response = await this.client.get('/users/admin/list', { params });
+    return response.data;
+  }
+
+  async getPendingReports() {
+    const response = await this.client.get('/users/admin/reports');
+    return response.data;
+  }
+
   // Các phương thức quản lý bạn bè
   async sendFriendRequest(recipientId) {
     const response = await this.client.post('/friends/request', { recipientId });
@@ -371,6 +386,32 @@ class APIService {
       messageId,
       reason
     });
+    return response.data;
+  }
+
+  // Admin user management methods
+  async adminBlockUser(userId) {
+    const response = await this.client.post(`/users/admin/user/${userId}/block`);
+    return response.data;
+  }
+
+  async adminUnblockUser(userId) {
+    const response = await this.client.post(`/users/admin/user/${userId}/unblock`);
+    return response.data;
+  }
+
+  async promoteAdmin(userId) {
+    const response = await this.client.post(`/users/admin/user/${userId}/promote`);
+    return response.data;
+  }
+
+  async demoteAdmin(userId) {
+    const response = await this.client.post(`/users/admin/user/${userId}/demote`);
+    return response.data;
+  }
+
+  async resetWarnings(userId) {
+    const response = await this.client.post(`/users/admin/user/${userId}/reset-warnings`);
     return response.data;
   }
 

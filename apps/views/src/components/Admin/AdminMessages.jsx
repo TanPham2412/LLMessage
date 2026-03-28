@@ -67,6 +67,10 @@ class AdminMessages extends Component {
 
       const response = await api.getAllMessages(filters);
 
+      console.log('Messages API Response:', response);
+      console.log('Messages data:', response.data);
+      console.log('showDeleted:', this.state.showDeleted);
+
       if (response.success) {
         this.setState({
           messages: response.data,
@@ -137,7 +141,9 @@ class AdminMessages extends Component {
   };
 
   handleShowDeletedChange = (e) => {
-    this.setState({ showDeleted: e.target.checked });
+    this.setState({ showDeleted: e.target.checked, currentPage: 1 }, () => {
+      this.loadMessages(1);
+    });
   };
 
   handleApplyFilters = () => {
@@ -382,8 +388,8 @@ class AdminMessages extends Component {
                       {message.isDeleted ? (
                         <span style={{ color: '#ff4444', fontWeight: 'bold' }}>❌ Đã xóa</span>
                       ) : (
-                        <span style={{ color: '#44aa44', fontWeight: 'bold' }}>✓ Hoạt động</span>
-                      )}
+                        <span style={{ color: '#44ff44', fontWeight: 'bold' }}>✅ Hoạt động</span>
+                      )}             
                     </td>
                     <td>
                       {message.isDeleted ? (

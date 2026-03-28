@@ -182,7 +182,7 @@ class User {
             },
             accountStatus: {
                 type: String,
-                enum: ['active', 'locked', 'deleted'],
+                enum: ['active', 'inactive'],
                 default: 'active'
             },
             warningLockedAt: {
