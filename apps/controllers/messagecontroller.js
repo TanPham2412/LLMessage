@@ -1,5 +1,4 @@
 var express = require("express");
-var router = express.Router();
 var MessageService = require(global.__basedir + "/apps/Services/MessageService");
 var { authenticate, isAdmin } = require(global.__basedir + "/apps/middleware/auth");
 var multer = require('multer');
@@ -54,17 +53,25 @@ var upload = multer({
     fileFilter: fileFilter
 });
 
-// socketHandler sẽ được set từ app.js
-var socketHandler = null;
-router.setSocketHandler = function(handler) {
-    socketHandler = handler;
-};
+class MessageController {
+    constructor() {
+        this.router = express.Router();
+        this.socketHandler = null;
+        this.initializeRoutes();
+    }
 
-// All routes require authentication
-router.use(authenticate);
+    setSocketHandler(handler) {
+        this.socketHandler = handler;
+    }
 
-// POST / - Send message (with optional file upload)
-router.post("/", upload.single('file'), async function(req, res) {
+    initializeRoutes() {
+        var self = this;
+
+        // All routes require authentication
+        this.router.use(authenticate);
+
+        // POST / - Send message (with optional file upload)
+        this.router.post("/", upload.single('file'), async function(req, res) {
     try {
         var messageService = new MessageService();
         var { conversationId, content, type, contactData } = req.body;
@@ -99,7 +106,7 @@ router.post("/", upload.single('file'), async function(req, res) {
 });
 
 // GET /conversation/:conversationId - Get messages for a conversation
-router.get("/conversation/:conversationId", async function(req, res) {
+        this.router.get("/conversation/:conversationId", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { conversationId } = req.params;
@@ -127,7 +134,7 @@ router.get("/conversation/:conversationId", async function(req, res) {
 });
 
 // PUT /:messageId/read - Mark message as read
-router.put("/:messageId/read", async function(req, res) {
+        this.router.put("/:messageId/read", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { messageId } = req.params;
@@ -147,7 +154,7 @@ router.put("/:messageId/read", async function(req, res) {
 });
 
 // PUT /:messageId - Edit message
-router.put("/:messageId", async function(req, res) {
+        this.router.put("/:messageId", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { messageId } = req.params;
@@ -167,8 +174,8 @@ router.put("/:messageId", async function(req, res) {
         }
 
         // Emit socket event for real-time update
-        if (socketHandler && socketHandler.io && result.data.conversation) {
-            socketHandler.io.to("conversation:" + result.data.conversation).emit('message-edited', {
+        if (self.socketHandler && self.socketHandler.io && result.data.conversation) {
+            self.socketHandler.io.to("conversation:" + result.data.conversation).emit('message-edited', {
                 _id: result.data._id,
                 conversation: result.data.conversation,
                 content: result.data.content,
@@ -191,7 +198,7 @@ router.put("/:messageId", async function(req, res) {
 });
 
 // DELETE /:messageId/me - Delete message for me only
-router.delete("/:messageId/me", async function(req, res) {
+        this.router.delete("/:messageId/me", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { messageId } = req.params;
@@ -210,7 +217,7 @@ router.delete("/:messageId/me", async function(req, res) {
 });
 
 // POST /:messageId/pin - Pin or unpin a message
-router.post("/:messageId/pin", async function(req, res) {
+        this.router.post("/:messageId/pin", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { messageId } = req.params;
@@ -228,15 +235,15 @@ router.post("/:messageId/pin", async function(req, res) {
         }
 
         // Emit socket event to all participants
-        if (socketHandler && socketHandler.io) {
-            socketHandler.io.to("conversation:" + conversationId).emit('message-pinned', {
+        if (self.socketHandler && self.socketHandler.io) {
+            self.socketHandler.io.to("conversation:" + conversationId).emit('message-pinned', {
                 messageId: messageId,
                 conversationId: conversationId,
                 isPinned: result.isPinned
             });
             // Emit system notification message
             if (result.isPinned && result.systemMessage) {
-                socketHandler.io.to("conversation:" + conversationId).emit('receive-message', result.systemMessage);
+                self.socketHandler.io.to("conversation:" + conversationId).emit('receive-message', result.systemMessage);
             }
         }
 
@@ -248,7 +255,7 @@ router.post("/:messageId/pin", async function(req, res) {
 });
 
 // GET /conversation/:conversationId/pinned - Get pinned messages
-router.get("/conversation/:conversationId/pinned", async function(req, res) {
+        this.router.get("/conversation/:conversationId/pinned", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { conversationId } = req.params;
@@ -268,7 +275,7 @@ router.get("/conversation/:conversationId/pinned", async function(req, res) {
 });
 
 // GET /conversation/:conversationId/media - Get media files & links
-router.get("/conversation/:conversationId/media", async function(req, res) {
+        this.router.get("/conversation/:conversationId/media", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { conversationId } = req.params;
@@ -288,7 +295,7 @@ router.get("/conversation/:conversationId/media", async function(req, res) {
 });
 
 // GET /conversation/:conversationId/search - Search messages by content
-router.get("/conversation/:conversationId/search", async function(req, res) {
+        this.router.get("/conversation/:conversationId/search", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { conversationId } = req.params;
@@ -313,7 +320,7 @@ router.get("/conversation/:conversationId/search", async function(req, res) {
 });
 
 // DELETE /:messageId - Delete message for all (thu hồi)
-router.delete("/:messageId", async function(req, res) {
+        this.router.delete("/:messageId", async function(req, res) {
     try {
         var messageService = new MessageService();
         var { messageId } = req.params;
@@ -328,8 +335,8 @@ router.delete("/:messageId", async function(req, res) {
         }
 
         // Emit socket event for real-time update
-        if (socketHandler && socketHandler.io && result.data.conversation) {
-            socketHandler.io.to("conversation:" + result.data.conversation).emit('message-deleted', {
+        if (self.socketHandler && self.socketHandler.io && result.data.conversation) {
+            self.socketHandler.io.to("conversation:" + result.data.conversation).emit('message-deleted', {
                 _id: result.data._id,
                 conversation: result.data.conversation,
                 isDeleted: result.data.isDeleted,
@@ -350,7 +357,7 @@ router.delete("/:messageId", async function(req, res) {
 });
 
 // POST /:messageId/restore - Admin: Restore soft-deleted message
-router.post("/:messageId/restore", authenticate, isAdmin, async function(req, res) {
+        this.router.post("/:messageId/restore", authenticate, isAdmin, async function(req, res) {
     try {
         var messageService = new MessageService();
         var { messageId } = req.params;
@@ -362,8 +369,8 @@ router.post("/:messageId/restore", authenticate, isAdmin, async function(req, re
         }
 
         // Emit socket event for real-time update
-        if (socketHandler && socketHandler.io && result.data.conversation) {
-            socketHandler.io.to("conversation:" + result.data.conversation._id).emit('message-restored', {
+        if (self.socketHandler && self.socketHandler.io && result.data.conversation) {
+            self.socketHandler.io.to("conversation:" + result.data.conversation._id).emit('message-restored', {
                 _id: result.data._id,
                 conversation: result.data.conversation._id || result.data.conversation,
                 isDeleted: result.data.isDeleted
@@ -378,7 +385,7 @@ router.post("/:messageId/restore", authenticate, isAdmin, async function(req, re
 });
 
 // GET /admin/all - Admin: Get all messages with filters
-router.get("/admin/all", isAdmin, async function(req, res) {
+        this.router.get("/admin/all", isAdmin, async function(req, res) {
     try {
         var messageService = new MessageService();
         var { page, limit, search, type, senderId, conversationId, dateFrom, dateTo, showDeleted } = req.query;
@@ -408,4 +415,13 @@ router.get("/admin/all", isAdmin, async function(req, res) {
     }
 });
 
-module.exports = router;
+    }
+
+    getRouter() {
+        return this.router;
+    }
+}
+
+var messageController = new MessageController();
+module.exports = messageController.getRouter();
+module.exports.setSocketHandler = messageController.setSocketHandler.bind(messageController);

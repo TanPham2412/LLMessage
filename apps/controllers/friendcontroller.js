@@ -1,5 +1,4 @@
 var express = require("express");
-var router = express.Router();
 var UserRepository = require(global.__basedir + "/apps/Repository/UserRepository");
 var ConversationRepository = require(global.__basedir + "/apps/Repository/ConversationRepository");
 var Notification = require(global.__basedir + "/apps/Entity/Notification");
@@ -8,17 +7,25 @@ var Conversation = require(global.__basedir + "/apps/Entity/Conversation");
 var Message = require(global.__basedir + "/apps/Entity/Message");
 var { authenticate } = require(global.__basedir + "/apps/middleware/auth");
 
-// socketHandler sẽ được set từ app.js
-var socketHandler = null;
-router.setSocketHandler = function(handler) {
-    socketHandler = handler;
-};
+class FriendController {
+    constructor() {
+        this.router = express.Router();
+        this.socketHandler = null;
+        this.initializeRoutes();
+    }
 
-// All routes require authentication
-router.use(authenticate);
+    setSocketHandler(handler) {
+        this.socketHandler = handler;
+    }
 
-// POST /request - Send friend request
-router.post("/request", async function(req, res) {
+    initializeRoutes() {
+        var self = this;
+
+        // All routes require authentication
+        this.router.use(authenticate);
+
+        // POST /request - Send friend request
+        this.router.post("/request", async function(req, res) {
     try {
         var { recipientId } = req.body;
         var senderId = req.user.id;
@@ -69,8 +76,8 @@ router.post("/request", async function(req, res) {
             data: { requestId: recipient.friendRequests[recipient.friendRequests.length - 1]._id }
         });
 
-        if (socketHandler) {
-            socketHandler.sendNotificationToUser(recipientId, 'friend-request-received', {
+        if (self.socketHandler) {
+            self.socketHandler.sendNotificationToUser(recipientId, 'friend-request-received', {
                 requestId: recipient.friendRequests[recipient.friendRequests.length - 1]._id,
                 from: {
                     _id: sender._id,
@@ -90,7 +97,7 @@ router.post("/request", async function(req, res) {
 });
 
 // GET /requests - Get friend requests
-router.get("/requests", async function(req, res) {
+        this.router.get("/requests", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var userId = req.user.id;
@@ -105,7 +112,7 @@ router.get("/requests", async function(req, res) {
 });
 
 // POST /request/:requestId/accept - Accept friend request
-router.post("/request/:requestId/accept", async function(req, res) {
+        this.router.post("/request/:requestId/accept", async function(req, res) {
     try {
         var { requestId } = req.params;
         var userId = req.user.id;
@@ -148,8 +155,8 @@ router.post("/request/:requestId/accept", async function(req, res) {
             data: { conversationId: conversation._id }
         });
 
-        if (socketHandler) {
-            socketHandler.sendNotificationToUser(senderId, 'friend-request-accepted', {
+        if (self.socketHandler) {
+            self.socketHandler.sendNotificationToUser(senderId, 'friend-request-accepted', {
                 from: {
                     _id: user._id,
                     username: user.username,
@@ -173,7 +180,7 @@ router.post("/request/:requestId/accept", async function(req, res) {
 });
 
 // POST /request/:requestId/reject - Reject friend request
-router.post("/request/:requestId/reject", async function(req, res) {
+        this.router.post("/request/:requestId/reject", async function(req, res) {
     try {
         var { requestId } = req.params;
         var userId = req.user.id;
@@ -206,8 +213,8 @@ router.post("/request/:requestId/reject", async function(req, res) {
             data: {}
         });
 
-        if (socketHandler) {
-            socketHandler.sendNotificationToUser(senderId, 'friend-request-rejected', {
+        if (self.socketHandler) {
+            self.socketHandler.sendNotificationToUser(senderId, 'friend-request-rejected', {
                 from: {
                     _id: user._id,
                     username: user.username,
@@ -227,7 +234,7 @@ router.post("/request/:requestId/reject", async function(req, res) {
 });
 
 // GET / - Get friends list
-router.get("/", async function(req, res) {
+        this.router.get("/", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var userId = req.user.id;
@@ -242,7 +249,7 @@ router.get("/", async function(req, res) {
 });
 
 // DELETE /:friendId - Remove friend
-router.delete("/:friendId", async function(req, res) {
+        this.router.delete("/:friendId", async function(req, res) {
     try {
         var { friendId } = req.params;
         var userId = req.user.id;
@@ -267,7 +274,7 @@ router.delete("/:friendId", async function(req, res) {
 });
 
 // GET /conversations - Get conversations
-router.get("/conversations", async function(req, res) {
+        this.router.get("/conversations", async function(req, res) {
     try {
         var conversationRepository = new ConversationRepository();
         var userId = req.user.id;
@@ -342,7 +349,7 @@ router.get("/conversations", async function(req, res) {
 });
 
 // POST /conversations - Create conversation
-router.post("/conversations", async function(req, res) {
+        this.router.post("/conversations", async function(req, res) {
     try {
         var conversationRepository = new ConversationRepository();
         var { participantId } = req.body;
@@ -368,8 +375,8 @@ router.post("/conversations", async function(req, res) {
 
         await conversation.populate('participants', 'username fullName avatar isOnline');
 
-        if (socketHandler) {
-            socketHandler.joinUserToConversation(userId, conversation._id.toString());
+        if (self.socketHandler) {
+            self.socketHandler.joinUserToConversation(userId, conversation._id.toString());
         }
 
         res.status(201).json({
@@ -384,7 +391,7 @@ router.post("/conversations", async function(req, res) {
 });
 
 // POST /conversations/:conversationId/pin - Toggle pin
-router.post("/conversations/:conversationId/pin", async function(req, res) {
+        this.router.post("/conversations/:conversationId/pin", async function(req, res) {
     try {
         var { conversationId } = req.params;
         var userId = req.user.id;
@@ -422,7 +429,7 @@ router.post("/conversations/:conversationId/pin", async function(req, res) {
 });
 
 // DELETE /conversations/:conversationId - Delete conversation (soft)
-router.delete("/conversations/:conversationId", async function(req, res) {
+        this.router.delete("/conversations/:conversationId", async function(req, res) {
     try {
         var { conversationId } = req.params;
         var userId = req.user.id;
@@ -457,7 +464,7 @@ router.delete("/conversations/:conversationId", async function(req, res) {
 });
 
 // POST /groups - Create group
-router.post("/groups", async function(req, res) {
+        this.router.post("/groups", async function(req, res) {
     try {
         var conversationRepository = new ConversationRepository();
         var { name, members } = req.body;
@@ -494,7 +501,7 @@ router.post("/groups", async function(req, res) {
 });
 
 // GET /conversations/:conversationId/nicknames - Get nicknames
-router.get("/conversations/:conversationId/nicknames", async function(req, res) {
+        this.router.get("/conversations/:conversationId/nicknames", async function(req, res) {
     try {
         var conversationRepository = new ConversationRepository();
         var { conversationId } = req.params;
@@ -528,7 +535,7 @@ router.get("/conversations/:conversationId/nicknames", async function(req, res) 
 });
 
 // PUT /conversations/:conversationId/nickname - Set nickname
-router.put("/conversations/:conversationId/nickname", async function(req, res) {
+        this.router.put("/conversations/:conversationId/nickname", async function(req, res) {
     try {
         var { conversationId } = req.params;
         var { targetId, nickname, isPublic } = req.body;
@@ -593,8 +600,8 @@ router.put("/conversations/:conversationId/nickname", async function(req, res) {
                 lastMessageAt: new Date()
             });
 
-            if (socketHandler && socketHandler.io) {
-                socketHandler.io.to("conversation:" + conversationId).emit('receive-message', sysMsg.toObject());
+            if (self.socketHandler && self.socketHandler.io) {
+                self.socketHandler.io.to("conversation:" + conversationId).emit('receive-message', sysMsg.toObject());
             }
         }
 
@@ -615,7 +622,7 @@ router.put("/conversations/:conversationId/nickname", async function(req, res) {
 });
 
 // POST /users/:userId/block - Block user
-router.post("/users/:userId/block", async function(req, res) {
+        this.router.post("/users/:userId/block", async function(req, res) {
     try {
         var targetUserId = req.params.userId;
         var userId = req.user.id;
@@ -644,7 +651,7 @@ router.post("/users/:userId/block", async function(req, res) {
 });
 
 // DELETE /users/:userId/block - Unblock user
-router.delete("/users/:userId/block", async function(req, res) {
+        this.router.delete("/users/:userId/block", async function(req, res) {
     try {
         var targetUserId = req.params.userId;
         var userId = req.user.id;
@@ -663,7 +670,7 @@ router.delete("/users/:userId/block", async function(req, res) {
 });
 
 // POST /users/:userId/restrict - Restrict user
-router.post("/users/:userId/restrict", async function(req, res) {
+        this.router.post("/users/:userId/restrict", async function(req, res) {
     try {
         var targetUserId = req.params.userId;
         var userId = req.user.id;
@@ -692,7 +699,7 @@ router.post("/users/:userId/restrict", async function(req, res) {
 });
 
 // DELETE /users/:userId/restrict - Unrestrict user
-router.delete("/users/:userId/restrict", async function(req, res) {
+        this.router.delete("/users/:userId/restrict", async function(req, res) {
     try {
         var targetUserId = req.params.userId;
         var userId = req.user.id;
@@ -711,7 +718,7 @@ router.delete("/users/:userId/restrict", async function(req, res) {
 });
 
 // GET /blocked - Get blocked users
-router.get("/blocked", async function(req, res) {
+        this.router.get("/blocked", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var userId = req.user.id;
@@ -726,7 +733,7 @@ router.get("/blocked", async function(req, res) {
 });
 
 // GET /restricted - Get restricted users
-router.get("/restricted", async function(req, res) {
+        this.router.get("/restricted", async function(req, res) {
     try {
         var userRepository = new UserRepository();
         var userId = req.user.id;
@@ -741,7 +748,7 @@ router.get("/restricted", async function(req, res) {
 });
 
 // GET /users/:userId/status-visibility - Check status visibility
-router.get("/users/:userId/status-visibility", async function(req, res) {
+        this.router.get("/users/:userId/status-visibility", async function(req, res) {
     try {
         var targetUserId = req.params.userId;
         var currentUserId = req.user.id;
@@ -762,4 +769,13 @@ router.get("/users/:userId/status-visibility", async function(req, res) {
     }
 });
 
-module.exports = router;
+    }
+
+    getRouter() {
+        return this.router;
+    }
+}
+
+var friendController = new FriendController();
+module.exports = friendController.getRouter();
+module.exports.setSocketHandler = friendController.setSocketHandler.bind(friendController);

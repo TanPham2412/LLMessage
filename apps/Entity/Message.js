@@ -22,7 +22,7 @@ class Message {
 
     }
 
-    static getSchema() {
+    getSchema() {
         var schema = new mongoose.Schema({
             conversation: {
                 type: mongoose.Schema.Types.ObjectId,
@@ -112,9 +112,9 @@ class Message {
         return schema;
     }
 
-    static getModel() {
+    getModel() {
         return mongoose.model('Message', this.getSchema());
     }
 }
 
-module.exports = Message.getModel();
+module.exports = new Message().getModel();

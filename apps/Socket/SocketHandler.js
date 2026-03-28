@@ -1,5 +1,5 @@
 var jwt = require('jsonwebtoken');
-var config = require(global.__basedir + "/Config/Setting.json");
+var config = require(global.__basedir + "/Config/config");
 var User = require(global.__basedir + "/apps/Entity/User");
 var Conversation = require(global.__basedir + "/apps/Entity/Conversation");
 var Message = require(global.__basedir + "/apps/Entity/Message");

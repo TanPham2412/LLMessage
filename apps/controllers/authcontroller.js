@@ -1,12 +1,11 @@
 var express = require("express");
-var router = express.Router();
 var AuthService = require(global.__basedir + "/apps/Services/AuthService");
 var { authenticate } = require(global.__basedir + "/apps/middleware/auth");
 var { OAuth2Client } = require('google-auth-library');
 var speakeasy = require('speakeasy');
 var QRCode = require('qrcode');
 var crypto = require('crypto');
-var config = require(global.__basedir + "/Config/Setting.json");
+var config = require(global.__basedir + "/Config/config");
 var multer = require('multer');
 var path = require('path');
 var fs = require('fs');
@@ -30,8 +29,15 @@ var upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } }
 
 var googleClient = new OAuth2Client(config.google.clientId);
 
-// POST /register
-router.post("/register", async function(req, res) {
+class AuthController {
+    constructor() {
+        this.router = express.Router();
+        this.initializeRoutes();
+    }
+
+    initializeRoutes() {
+        // POST /register
+        this.router.post("/register", async function(req, res) {
     try {
         var authService = new AuthService();
         var { username, email, password, fullName } = req.body;
@@ -84,7 +90,7 @@ router.post("/register", async function(req, res) {
 });
 
 // POST /login
-router.post("/login", async function(req, res) {
+        this.router.post("/login", async function(req, res) {
     try {
         var authService = new AuthService();
         var { email, password, loginId } = req.body;
@@ -128,7 +134,7 @@ router.post("/login", async function(req, res) {
 });
 
 // POST /google
-router.post("/google", async function(req, res) {
+        this.router.post("/google", async function(req, res) {
     try {
         var authService = new AuthService();
         var { credential } = req.body;
@@ -211,7 +217,7 @@ router.post("/google", async function(req, res) {
 });
 
 // POST /2fa/validate-login
-router.post("/2fa/validate-login", async function(req, res) {
+        this.router.post("/2fa/validate-login", async function(req, res) {
     try {
         var authService = new AuthService();
         var { tempToken, code, backupCode } = req.body;
@@ -280,7 +286,7 @@ router.post("/2fa/validate-login", async function(req, res) {
 });
 
 // POST /logout (protected)
-router.post("/logout", authenticate, async function(req, res) {
+        this.router.post("/logout", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -295,7 +301,7 @@ router.post("/logout", authenticate, async function(req, res) {
 });
 
 // GET /me (protected)
-router.get("/me", authenticate, async function(req, res) {
+        this.router.get("/me", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var user = await authService.getUserWithFriends(req.user.id);
@@ -312,7 +318,7 @@ router.get("/me", authenticate, async function(req, res) {
 });
 
 // PUT /profile (protected)
-router.put("/profile", authenticate, async function(req, res) {
+        this.router.put("/profile", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -342,7 +348,7 @@ router.put("/profile", authenticate, async function(req, res) {
 });
 
 // POST /upload-avatar (protected)
-router.post("/upload-avatar", authenticate, upload.single('avatar'), async function(req, res) {
+        this.router.post("/upload-avatar", authenticate, upload.single('avatar'), async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -366,7 +372,7 @@ router.post("/upload-avatar", authenticate, upload.single('avatar'), async funct
 });
 
 // PUT /password (protected)
-router.put("/password", authenticate, async function(req, res) {
+        this.router.put("/password", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -411,7 +417,7 @@ router.put("/password", authenticate, async function(req, res) {
 });
 
 // POST /2fa/setup (protected)
-router.post("/2fa/setup", authenticate, async function(req, res) {
+        this.router.post("/2fa/setup", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -447,7 +453,7 @@ router.post("/2fa/setup", authenticate, async function(req, res) {
 });
 
 // POST /2fa/verify (protected)
-router.post("/2fa/verify", authenticate, async function(req, res) {
+        this.router.post("/2fa/verify", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -502,7 +508,7 @@ router.post("/2fa/verify", authenticate, async function(req, res) {
 });
 
 // POST /2fa/disable (protected)
-router.post("/2fa/disable", authenticate, async function(req, res) {
+        this.router.post("/2fa/disable", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -548,7 +554,7 @@ router.post("/2fa/disable", authenticate, async function(req, res) {
 });
 
 // POST /2fa/regenerate-backup-codes (protected)
-router.post("/2fa/regenerate-backup-codes", authenticate, async function(req, res) {
+        this.router.post("/2fa/regenerate-backup-codes", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -595,7 +601,7 @@ router.post("/2fa/regenerate-backup-codes", authenticate, async function(req, re
 });
 
 // GET /2fa/status (protected)
-router.get("/2fa/status", authenticate, async function(req, res) {
+        this.router.get("/2fa/status", authenticate, async function(req, res) {
     try {
         var authService = new AuthService();
         var userId = req.user.id;
@@ -623,4 +629,11 @@ router.get("/2fa/status", authenticate, async function(req, res) {
     }
 });
 
-module.exports = router;
+    }
+
+    getRouter() {
+        return this.router;
+    }
+}
+
+module.exports = new AuthController().getRouter();

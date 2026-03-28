@@ -33,7 +33,7 @@ class User {
 
     }
 
-    static getSchema() {
+    getSchema() {
         var schema = new mongoose.Schema({
             username: {
                 type: String,
@@ -259,9 +259,9 @@ class User {
         return schema;
     }
 
-    static getModel() {
+    getModel() {
         return mongoose.model('User', this.getSchema());
     }
 }
 
-module.exports = User.getModel();
+module.exports = new User().getModel();

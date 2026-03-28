@@ -7,7 +7,7 @@ var cors = require('cors');
 
 global.__basedir = __dirname;
 
-var config = require(__dirname + "/Config/Setting.json");
+var config = require(__dirname + "/Config/config");
 var DatabaseConnection = require(__dirname + "/apps/Database/Database");
 var { Server } = require('socket.io');
 
@@ -91,7 +91,7 @@ app.get('*', function(req, res) {
 // Kết nối database và khởi động server
 async function startServer() {
     try {
-        await DatabaseConnection.connect();
+        await new DatabaseConnection().connect();
         socketHandler.initialize();
 
         server.listen(config.server.port, function() {
