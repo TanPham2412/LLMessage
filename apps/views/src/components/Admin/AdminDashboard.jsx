@@ -11,7 +11,9 @@ class AdminDashboard extends Component {
         totalUsers: 0,
         totalMessages: 0,
         onlineUsers: 0,
-        totalConversations: 0
+        totalConversations: 0,
+        lockedAccounts: 0,
+        usersWithWarnings: 0
       },
       loading: true,
       error: null
@@ -117,6 +119,22 @@ class AdminDashboard extends Component {
                 {loading ? '...' : stats.totalConversations}
               </p>
             </div>
+
+            <div className="stat-card" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+              <div className="stat-icon">🔒</div>
+              <h3>Tài Khoản Bị Khóa</h3>
+              <p className="stat-number" style={{ color: '#fca5a5' }}>
+                {loading ? '...' : stats.lockedAccounts}
+              </p>
+            </div>
+
+            <div className="stat-card" style={{ borderColor: 'rgba(251, 146, 60, 0.3)' }}>
+              <div className="stat-icon">⚠️</div>
+              <h3>Người Dùng Bị Cảnh Báo</h3>
+              <p className="stat-number" style={{ color: '#fed7aa' }}>
+                {loading ? '...' : stats.usersWithWarnings}
+              </p>
+            </div>
           </div>
 
           <div className="admin-menu">
@@ -130,6 +148,11 @@ class AdminDashboard extends Component {
               <a href="/admin/messages" className="menu-card">
                 <h3>💬 Quản Lý Tin Nhắn</h3>
                 <p>Xem và quản lý tất cả tin nhắn trong hệ thống</p>
+              </a>
+
+              <a href="/admin/violations" className="menu-card">
+                <h3>⚠️ Quản Lý Vi Phạm</h3>
+                <p>Xem danh sách cảnh báo và tài khoản bị khóa</p>
               </a>
             </div>
           </div>

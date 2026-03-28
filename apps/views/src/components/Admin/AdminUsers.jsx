@@ -10,15 +10,13 @@ class AdminUsers extends Component {
       users: [],
       loading: false,
       error: null,
-      searchQuery: '',
-      currentPage: 1,
-      totalPages: 1,
-      editingUser: null,
-      editForm: {
-        username: '',
-        fullName: '',
-        bio: ''
-      }
+      search: '',
+      roleFilter: 'all', // all, user, admin, moderator
+      statusFilter: 'all', // all, active, suspended, locked
+      page: 1,
+      pageSize: 10,
+      totalUsers: 0,
+      editingUser: null
     };
   }
 
@@ -26,252 +24,344 @@ class AdminUsers extends Component {
     this.loadUsers();
   }
 
-  loadUsers = async (page = 1) => {
+  loadUsers = async () => {
     try {
-      this.setState({ loading: true, error: null });
+      this.setState({ loading: true });
       
-      const response = await api.getAllUsers({
+      const { search, roleFilter, statusFilter, page, pageSize } = this.state;
+      
+      const params = {
         page,
-        limit: 20,
-        search: this.state.searchQuery
-      });
+        limit: pageSize,
+        ...(search && { search }),
+        ...(roleFilter !== 'all' && { role: roleFilter })
+      };
 
-      if (response.success) {
-        this.setState({
-          users: response.data,
-          currentPage: response.pagination.page,
-          totalPages: response.pagination.pages,
-          loading: false
-        });
+      const response = await api.getAllUsersWithStatus(params);
+      
+      console.log('API Response:', response);
+      console.log('Users data:', response.data);
+      
+      // Filter by isOnline status
+      let filteredUsers = response.data || [];
+      if (statusFilter !== 'all') {
+        const isActiveFilter = statusFilter === 'active';
+        filteredUsers = filteredUsers.filter(user => user.isOnline === isActiveFilter);
       }
-    } catch (error) {
+      
       this.setState({
-        error: 'Không thể tải danh sách người dùng',
+        users: filteredUsers,
+        totalUsers: response.pagination?.total || 0,
+        loading: false,
+        error: null
+      });
+    } catch (err) {
+      this.setState({
+        error: err.response?.data?.message || 'Lỗi khi tải danh sách người dùng',
         loading: false
       });
     }
   };
 
   handleSearch = (e) => {
-    this.setState({ searchQuery: e.target.value });
+    this.setState({ 
+      search: e.target.value,
+      page: 1 
+    }, this.loadUsers);
   };
 
-  handleSearchSubmit = (e) => {
-    e.preventDefault();
-    this.loadUsers(1);
+  handleRoleFilter = (e) => {
+    this.setState({ 
+      roleFilter: e.target.value,
+      page: 1 
+    }, this.loadUsers);
   };
 
-  handleEdit = (user) => {
-    this.setState({
-      editingUser: user._id,
-      editForm: {
-        username: user.username,
-        fullName: user.fullName || '',
-        bio: user.bio || ''
-      }
-    });
+  handleStatusFilter = (e) => {
+    this.setState({ 
+      statusFilter: e.target.value,
+      page: 1 
+    }, this.loadUsers);
   };
 
-  handleEditChange = (e) => {
-    this.setState({
-      editForm: {
-        ...this.state.editForm,
-        [e.target.name]: e.target.value
-      }
-    });
-  };
-
-  handleSaveEdit = async (userId) => {
-    try {
-      const response = await api.updateUser(userId, this.state.editForm);
-      
-      if (response.success) {
-        this.setState({ editingUser: null });
-        this.loadUsers(this.state.currentPage);
-        alert('Cập nhật người dùng thành công');
-      }
-    } catch (error) {
-      alert('Cập nhật người dùng thất bại');
+  handlePrevPage = () => {
+    if (this.state.page > 1) {
+      this.setState({ page: this.state.page - 1 }, this.loadUsers);
     }
   };
 
-  handleCancelEdit = () => {
-    this.setState({ editingUser: null });
+  handleNextPage = () => {
+    const { page, pageSize, totalUsers } = this.state;
+    if (page * pageSize < totalUsers) {
+      this.setState({ page: page + 1 }, this.loadUsers);
+    }
   };
 
-  handleDelete = async (userId, username) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa người dùng "${username}"?`)) {
-      return;
-    }
-
-    try {
-      const response = await api.deleteUser(userId);
-      
-      if (response.success) {
-        this.loadUsers(this.state.currentPage);
-        alert('Xóa người dùng thành công');
+  handleBlockUser = async (userId) => {
+    if (window.confirm('Xác nhận khóa tài khoản này?')) {
+      try {
+        await api.adminBlockUser(userId);
+        this.loadUsers();
+      } catch (err) {
+        alert('Lỗi: ' + (err.response?.data?.message || 'Không thể khóa tài khoản'));
       }
-    } catch (error) {
-      alert('Xóa người dùng thất bại');
     }
   };
 
-  handlePageChange = (page) => {
-    this.loadUsers(page);
+  handleUnblockUser = async (userId) => {
+    if (window.confirm('Xác nhận mở khóa tài khoản này?')) {
+      try {
+        await api.adminUnblockUser(userId);
+        this.loadUsers();
+      } catch (err) {
+        alert('Lỗi: ' + (err.response?.data?.message || 'Không thể mở khóa tài khoản'));
+      }
+    }
+  };
+
+  handleDeleteUser = async (userId) => {
+    if (window.confirm('Xác nhận xóa tài khoản này? Hành động này không thể hoàn tác!')) {
+      try {
+        await api.delete(`/users/${userId}`);
+        this.loadUsers();
+      } catch (err) {
+        alert('Lỗi: ' + (err.response?.data?.message || 'Không thể xóa tài khoản'));
+      }
+    }
+  };
+
+  getStatusColor = (isOnline) => {
+    return isOnline ? '#10b981' : '#ef4444';
+  };
+
+  getStatusText = (isOnline) => {
+    return isOnline ? '✅ Hoạt động' : '❌ Không hoạt động';
   };
 
   render() {
-    const { users, loading, error, searchQuery, currentPage, totalPages, editingUser, editForm } = this.state;
+    const { users, loading, error, search, roleFilter, statusFilter, page, pageSize, totalUsers } = this.state;
+    const totalPages = Math.ceil(totalUsers / pageSize);
 
     return (
       <div className="admin-container">
-        <div className="admin-header">
-          <h1>Quản Lý Người Dùng</h1>
+        <div className="admin-header" style={{ marginBottom: '20px' }}>
+          <h1>👥 Quản Lý Người Dùng</h1>
           <div className="admin-nav">
-            <a href="/admin" className="btn-link">Bảng Điều Khiển</a>
+            <a href="/admin" className="btn-link">← Quay lại Dashboard</a>
             <a href="/" className="btn-link">Quay lại Chat</a>
           </div>
         </div>
 
-        <div className="admin-content">
-          <div className="admin-toolbar">
-            <form onSubmit={this.handleSearchSubmit} className="search-form">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={this.handleSearch}
-                placeholder="Tìm kiếm người dùng..."
-                className="search-input"
-              />
-              <button type="submit" className="btn-search">Tìm Kiếm</button>
-            </form>
-          </div>
+        {error && <div className="error-message">{error}</div>}
 
-          {error && <div className="error-message">{error}</div>}
-          {loading && <div className="loading">Đang tải người dùng...</div>}
+        {/* Filters Section */}
+        <div className="admin-filters" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="🔍 Tìm kiếm theo tên hoặc email..."
+            value={search}
+            onChange={this.handleSearch}
+            style={{ 
+              flex: 1, 
+              padding: '10px 12px', 
+              borderRadius: '6px', 
+              border: '1px solid #334155',
+              background: '#1e293b',
+              color: '#f1f5f9'
+            }}
+          />
 
-          <div className="table-container">
-            <table className="admin-table">
+          <select
+            value={roleFilter}
+            onChange={this.handleRoleFilter}
+            style={{ 
+              padding: '10px 12px', 
+              borderRadius: '6px', 
+              border: '1px solid #334155',
+              background: '#1e293b',
+              color: '#f1f5f9'
+            }}
+          >
+            <option value="all">Tất cả vai trò</option>
+            <option value="user">Người dùng</option>
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={this.handleStatusFilter}
+            style={{ 
+              padding: '10px 12px', 
+              borderRadius: '6px', 
+              border: '1px solid #334155',
+              background: '#1e293b',
+              color: '#f1f5f9'
+            }}
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">✅ Hoạt động</option>
+            <option value="inactive">❌ Không hoạt động</option>
+          </select>
+
+          <button 
+            onClick={this.loadUsers}
+            style={{
+              padding: '10px 16px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            🔄 Làm Mới
+          </button>
+        </div>
+
+        {/* Users Table */}
+        <div style={{ overflowX: 'auto', marginTop: '20px' }}>
+          {loading ? (
+            <p style={{ color: '#cbd5e1' }}>⏳ Đang tải...</p>
+          ) : users.length === 0 ? (
+            <p style={{ color: '#cbd5e1' }}>Không tìm thấy người dùng</p>
+          ) : (
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              background: '#1e293b',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+            }}>
               <thead>
-                <tr>
-                  <th>Tên đăng nhập</th>
-                  <th>Họ và tên</th>
-                  <th>Email</th>
-                  <th>Giới thiệu</th>
-                  <th>Trạng thái</th>
-                  <th>Hành động</th>
+                <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155' }}>
+                  <th style={{ padding: '12px', textAlign: 'left', color: '#f1f5f9' }}>Tên</th>
+                  <th style={{ padding: '12px', textAlign: 'left', color: '#f1f5f9' }}>Email</th>
+                  <th style={{ padding: '12px', textAlign: 'center', color: '#f1f5f9' }}>Vai Trò</th>
+                  <th style={{ padding: '12px', textAlign: 'center', color: '#f1f5f9' }}>Trạng Thái</th>
+                  <th style={{ padding: '12px', textAlign: 'center', color: '#f1f5f9' }}>Cảnh Báo</th>
+                  <th style={{ padding: '12px', textAlign: 'center', color: '#f1f5f9' }}>Hành Động</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
-                  <tr key={user._id}>
-                    {editingUser === user._id ? (
-                      <>
-                        <td>
-                          <input
-                            type="text"
-                            name="username"
-                            value={editForm.username}
-                            onChange={this.handleEditChange}
-                            className="edit-input"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            name="fullName"
-                            value={editForm.fullName}
-                            onChange={this.handleEditChange}
-                            className="edit-input"
-                          />
-                        </td>
-                        <td>{user.email}</td>
-                        <td>
-                          <input
-                            type="text"
-                            name="bio"
-                            value={editForm.bio}
-                            onChange={this.handleEditChange}
-                            className="edit-input"
-                          />
-                        </td>
-                        <td>
-                          <span className={`status ${user.isOnline ? 'online' : 'offline'}`}>
-                            {user.isOnline ? 'Trực tuyến' : 'Ngoại tuyến'}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            onClick={() => this.handleSaveEdit(user._id)}
-                            className="btn-save"
-                          >
-                            Lưu
-                          </button>
-                          <button
-                            onClick={this.handleCancelEdit}
-                            className="btn-cancel"
-                          >
-                            Hủy
-                          </button>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td>{user.username}</td>
-                        <td>{user.fullName || '-'}</td>
-                        <td>{user.email}</td>
-                        <td>{user.bio || '-'}</td>
-                        <td>
-                          <span className={`status ${user.isOnline ? 'online' : 'offline'}`}>
-                            {user.isOnline ? 'Trực tuyến' : 'Ngoại tuyến'}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            onClick={() => this.handleEdit(user)}
-                            className="btn-edit"
-                          >
-                            Sửa
-                          </button>
-                          <button
-                            onClick={() => this.handleDelete(user._id, user.username)}
-                            className="btn-delete"
-                          >
-                            Xóa
-                          </button>
-                        </td>
-                      </>
-                    )}
+                {users.map((user, idx) => (
+                  <tr 
+                    key={user._id}
+                    style={{ 
+                      borderBottom: '1px solid #334155',
+                      background: idx % 2 === 0 ? '#1e293b' : '#0f172a'
+                    }}
+                  >
+                    <td style={{ padding: '12px', color: '#f1f5f9' }}>
+                      <strong>{user.username || 'N/A'}</strong>
+                    </td>
+                    <td style={{ padding: '12px', color: '#cbd5e1' }}>{user.email}</td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <span style={{
+                        background: user.role === 'admin' ? '#7c2d12' : '#1e3a8a',
+                        color: user.role === 'admin' ? '#fecaca' : '#bfdbfe',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}>
+                        {user.role === 'admin' ? '👑 Admin' : '👤 User'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <span style={{
+                        color: user.isOnline ? '#86efac' : '#fecaca',
+                        fontWeight: 'bold',
+                        background: user.isOnline ? '#064e3b' : '#7c2d12',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        display: 'inline-block'
+                      }}>
+                        {this.getStatusText(user.isOnline)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <span style={{
+                        background: (user.warnings && user.warnings > 0) ? '#78350f' : '#064e3b',
+                        color: (user.warnings && user.warnings > 0) ? '#fef3c7' : '#86efac',
+                        padding: '6px 10px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}>
+                        {(user.warnings && typeof user.warnings === 'number' && user.warnings > 0) ? `${user.warnings} ⚠️` : '0 ✅'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => this.handleDeleteUser(user._id)}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '11px'
+                          }}
+                        >
+                          🗑️ Xóa
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                onClick={() => this.handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="btn-page"
-              >
-                Trước
-              </button>
-              
-              <span className="page-info">
-                Trang {currentPage} / {totalPages}
-              </span>
-
-              <button
-                onClick={() => this.handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="btn-page"
-              >
-                Sau
-              </button>
-            </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ 
+            marginTop: '20px', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center'
+          }}>
+            <button
+              onClick={this.handlePrevPage}
+              disabled={page === 1}
+              style={{
+                padding: '8px 16px',
+                background: page === 1 ? '#334155' : '#3b82f6',
+                color: page === 1 ? '#64748b' : 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: page === 1 ? 'default' : 'pointer'
+              }}
+            >
+              ← Trang Trước
+            </button>
+
+            <span style={{ fontWeight: 'bold', color: '#f1f5f9' }}>
+              Trang {page} / {totalPages}
+            </span>
+
+            <button
+              onClick={this.handleNextPage}
+              disabled={page >= totalPages}
+              style={{
+                padding: '8px 16px',
+                background: page >= totalPages ? '#334155' : '#3b82f6',
+                color: page >= totalPages ? '#64748b' : 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: page >= totalPages ? 'default' : 'pointer'
+              }}
+            >
+              Trang Sau →
+            </button>
+          </div>
+        )}
       </div>
     );
   }

@@ -12,6 +12,7 @@ import ChatHome from './components/Chat/ChatHome.jsx';
 import AdminDashboard from './components/Admin/AdminDashboard.jsx';
 import AdminUsers from './components/Admin/AdminUsers.jsx';
 import AdminMessages from './components/Admin/AdminMessages.jsx';
+import AdminViolations from './components/Admin/AdminViolations.jsx';
 import UserProfile from './components/Profile/UserProfile.jsx';
 import EditProfile from './components/Profile/EditProfile.jsx';
 import PublicProfile from './components/Profile/PublicProfile.jsx';
@@ -107,6 +108,14 @@ class App extends Component {
                     element={
                       <AdminRoute>
                         <AdminMessages />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/violations"
+                    element={
+                      <AdminRoute>
+                        <AdminViolations />
                       </AdminRoute>
                     }
                   />
